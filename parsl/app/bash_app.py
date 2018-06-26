@@ -102,12 +102,16 @@ def remote_side_bash_executor(func, *args, **kwargs):
 class BashApp(AppBase):
 
     def __init__(self, func, data_flow_kernel=None, walltime=60, cache=False,
-                 executors='all', fn_hash=None):
+                 executors='all', fn_hash=None, auxiliary_files=None):
         """Initialize the super.
 
         This bit is the same for both bash & python apps.
         """
-        super().__init__(func, data_flow_kernel=data_flow_kernel, walltime=60, executors=executors, exec_type="bash")
+        super().__init__(func,
+                         data_flow_kernel=data_flow_kernel,
+                         walltime=60,
+                         executors=executors,
+                         auxiliary_files=auxiliary_files)
         self.kwargs = {}
         self.fn_hash = fn_hash
         self.cache = cache
@@ -147,6 +151,7 @@ class BashApp(AppBase):
                                                executors=self.executors,
                                                fn_hash=self.fn_hash,
                                                cache=self.cache,
+                                               auxiliary_files=auxiliary_files,
                                                **self.kwargs)
 
         out_futs = [DataFuture(app_fut, o, parent=app_fut, tid=app_fut.tid)

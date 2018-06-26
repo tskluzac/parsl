@@ -399,7 +399,7 @@ class DataFlowKernel(object):
 
         return new_args, kwargs, dep_failures
 
-    def submit(self, func, *args, executors='all', fn_hash=None, cache=False, **kwargs):
+    def submit(self, func, *args, executors='all', fn_hash=None, cache=False, auxiliary_files=[], **kwargs):
         """Add task to the dataflow system.
 
         If the app task has the executors attributes not set (default=='all')
@@ -465,6 +465,9 @@ class DataFlowKernel(object):
 
         # Transform remote input files to data futures
         self._add_input_deps(executor, args, kwargs)
+        for f in auxiliary_files:
+            if isinstance(f, File):
+                f.stage_in(executor)
 
         # Get the dep count and a list of dependencies for the task
         dep_cnt, depends = self._count_all_deps(task_id, args, kwargs)

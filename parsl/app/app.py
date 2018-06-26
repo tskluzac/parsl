@@ -16,7 +16,13 @@ class AppBase(object):
 
     """
 
-    def __init__(self, func, data_flow_kernel=None, walltime=60, executors='all', cache=False, exec_type="bash"):
+    def __init__(self,
+                 func,
+                 data_flow_kernel=None,
+                 walltime=60,
+                 executors='all',
+                 cache=False,
+                 auxiliary_files=None):
         """Construct the App object.
 
         Args:
@@ -30,6 +36,7 @@ class AppBase(object):
              - executors (str|list) : Labels of the executors that this app can execute over. Default is 'all'.
              - exec_type (string) : App type (bash|python)
              - cache (Bool) : Enable caching of this app ?
+             - auxiliary_files (list of File) : Files to be staged prior to running an app
 
         Returns:
              - App object.
@@ -38,13 +45,13 @@ class AppBase(object):
         self.__name__ = func.__name__
         self.func = func
         self.data_flow_kernel = data_flow_kernel
-        self.exec_type = exec_type
         self.status = 'created'
         self.executors = executors
         if not (isinstance(executors, list) or isinstance(executors, str)):
             logger.error("App {} specifies invalid executor option, expects string or list".format(
                 func.__name__))
         self.cache = cache
+        self.auxiliary_files = [] if auxiliary_files is None else auxiliary_files
 
         params = signature(func).parameters
 
@@ -72,7 +79,7 @@ def app_wrapper(func):
     return wrapper
 
 
-def App(apptype, data_flow_kernel=None, walltime=60, cache=False, executors='all'):
+def App(apptype, data_flow_kernel=None, walltime=60, cache=False, executors='all', auxiliary_files=None):
     """The App decorator function.
 
     Args:
@@ -87,6 +94,8 @@ def App(apptype, data_flow_kernel=None, walltime=60, cache=False, executors='all
         - executors (str|list) : Labels of the executors that this app can execute over. Default is 'all'.
         - cache (Bool) : Enable caching of the app call
              default=False
+        - auxiliary_files (list of File) : Files to be staged prior to running an app
+
 
     Returns:
          An AppFactory object, which when called runs the apps through the executor.
@@ -94,16 +103,18 @@ def App(apptype, data_flow_kernel=None, walltime=60, cache=False, executors='all
     from parsl import APP_FACTORY_FACTORY
 
     def wrapper(f):
-        return APP_FACTORY_FACTORY.make(apptype, f,
+        return APP_FACTORY_FACTORY.make(apptype,
+                                        f,
                                         data_flow_kernel=data_flow_kernel,
                                         executors=executors,
                                         cache=cache,
-                                        walltime=walltime)
+                                        walltime=walltime,
+                                        auxiliary_files=auxiliary_files)
 
     return wrapper
 
 
-def python_app(function=None, data_flow_kernel=None, walltime=60, cache=False, executors='all'):
+def python_app(function=None, data_flow_kernel=None, walltime=60, cache=False, executors='all', auxiliary_files=None):
     """Decorator function for making python apps.
 
     Parameters
@@ -122,17 +133,21 @@ def python_app(function=None, data_flow_kernel=None, walltime=60, cache=False, e
         Labels of the executors that this app can execute over. Default is 'all'.
     cache : bool
         Enable caching of the app call. Default is False.
+    auxiliary_files : list of File
+        Files to be staged prior to running an app
     """
 
     from parsl import APP_FACTORY_FACTORY
 
     def decorator(func):
         def wrapper(f):
-            return APP_FACTORY_FACTORY.make('python', f,
+            return APP_FACTORY_FACTORY.make('python',
+                                            f,
                                             data_flow_kernel=data_flow_kernel,
                                             executors=executors,
                                             cache=cache,
-                                            walltime=walltime)
+                                            walltime=walltime,
+                                            auxiliary_files=auxiliary_files)
 
         return wrapper(func)
     if function is not None:
@@ -140,7 +155,7 @@ def python_app(function=None, data_flow_kernel=None, walltime=60, cache=False, e
     return decorator
 
 
-def bash_app(function=None, data_flow_kernel=None, walltime=60, cache=False, executors='all'):
+def bash_app(function=None, data_flow_kernel=None, walltime=60, cache=False, executors='all', auxiliary_files=None):
     """Decorator function for making python apps.
 
     Parameters
@@ -159,6 +174,8 @@ def bash_app(function=None, data_flow_kernel=None, walltime=60, cache=False, exe
         Labels of the executors that this app can execute over. Default is 'all'.
     cache : bool
         Enable caching of the app call. Default is False.
+    auxiliary_files : list of File
+        Files to be staged prior to running an app
     """
     from parsl import APP_FACTORY_FACTORY
 
@@ -168,7 +185,8 @@ def bash_app(function=None, data_flow_kernel=None, walltime=60, cache=False, exe
                                             data_flow_kernel=data_flow_kernel,
                                             executors=executors,
                                             cache=cache,
-                                            walltime=walltime)
+                                            walltime=walltime,
+                                            auxiliary_files=auxiliary_files)
 
         return wrapper(func)
     if function is not None:

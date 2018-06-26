@@ -16,12 +16,16 @@ class PythonApp(AppBase):
     """Extends AppBase to cover the Python App."""
 
     def __init__(self, func, data_flow_kernel=None, walltime=60, cache=False,
-                 executors='all', fn_hash=None):
+                 executors='all', fn_hash=None, auxiliary_files=None):
         """Initialize the super.
 
         This bit is the same for both bash & python apps.
         """
-        super().__init__(wrap_error(func), data_flow_kernel=data_flow_kernel, walltime=walltime, executors=executors, exec_type="python")
+        super().__init__(wrap_error(func),
+                         data_flow_kernel=data_flow_kernel,
+                         walltime=walltime,
+                         executors=executors,
+                         auxiliary_files=auxiliary_files)
         self.fn_hash = fn_hash
         self.cache = cache
 
@@ -46,6 +50,7 @@ class PythonApp(AppBase):
                                                executors=self.executors,
                                                fn_hash=self.fn_hash,
                                                cache=self.cache,
+                                               auxiliary_files=self.auxiliary_files,
                                                **kwargs)
 
         # logger.debug("App[{}] assigned Task[{}]".format(self.func.__name__,

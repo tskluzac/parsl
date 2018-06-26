@@ -14,7 +14,14 @@ logger = logging.getLogger(__name__)
 class AppFactory(object):
     """AppFactory streamlines creation of apps."""
 
-    def __init__(self, app_class, func, data_flow_kernel=None, cache=False, executors='all', walltime=60):
+    def __init__(self,
+                 app_class,
+                 func,
+                 data_flow_kernel=None,
+                 cache=False,
+                 executors='all',
+                 walltime=60,
+                 auxiliary_files=None):
         """Construct an AppFactory for a particular app_class.
 
         Args:
@@ -39,6 +46,7 @@ class AppFactory(object):
         self.executors = executors
         self.sig = signature(func)
         self.cache = cache
+        self.auxiliary_files = auxiliary_files
         # Function source hashing is done here to avoid redoing this every time
         # the app is called.
         if cache is True:
@@ -72,7 +80,8 @@ class AppFactory(object):
                                  executors=self.executors,
                                  walltime=self.walltime,
                                  cache=self.cache,
-                                 fn_hash=self.func_hash)
+                                 fn_hash=self.func_hash,
+                                 auxiliary_files=self.auxiliary_files)
         return app_obj(*args, **kwargs)
 
     def __repr__(self):
