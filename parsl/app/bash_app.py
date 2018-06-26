@@ -151,7 +151,7 @@ class BashApp(AppBase):
                                                executors=self.executors,
                                                fn_hash=self.fn_hash,
                                                cache=self.cache,
-                                               auxiliary_files=auxiliary_files,
+                                               auxiliary_files=self.auxiliary_files,
                                                **self.kwargs)
 
         out_futs = [DataFuture(app_fut, o, parent=app_fut, tid=app_fut.tid)

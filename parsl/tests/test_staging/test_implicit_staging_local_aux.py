@@ -25,8 +25,12 @@ def sort_strings(path, inputs=[], outputs=[]):
                 s.write(e)
 
 
+@App('bash', auxiliary_files=[unsorted_file])
+def echo(path, inputs=[], outputs=[], stderr='std.err', stdout='std.out'):
+    return "echo {}".format(path)
+
 @pytest.mark.local
-def test_implicit_staging_local():
+def test_implicit_staging_local_aux():
     """Test implicit staging for local auxiliary file"""
 
 
@@ -37,6 +41,9 @@ def test_implicit_staging_local():
     f = sort_strings(path, outputs=[sorted_file])
     f.result()
 
+    f = echo(path)
+    f.result()
+
 
 if __name__ == "__main__":
-    test_implicit_staging_local()
+    test_implicit_staging_local_aux()
