@@ -175,7 +175,6 @@ class AppFuture(Future):
         if self.parent:
             return self.parent.add_done_callback(fn)
         else:
-            super().add_done_callback(fn)
             return None
 
     @property
