@@ -178,7 +178,6 @@ class DataFuture(Future):
         if self.parent:
             return self.parent.add_done_callback(fn)
         else:
-            logger.error("DANGER discarding done callback - this might cause a block - for self={}".format(self))
             return None
 
     def __repr__(self):
