@@ -37,4 +37,5 @@ def test_procedural(N=2):
 
 if __name__ == "__main__":
 
+    parsl.set_stream_logger()
     test_procedural()
