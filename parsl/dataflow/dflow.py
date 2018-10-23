@@ -313,13 +313,11 @@ class DataFlowKernel(object):
                 if isinstance(f, File) and f.is_remote():
                     f.stage_out(self.tasks[task_id]['executor'])
 
-        # Identify tasks that have resolved dependencies and launch
-        for tid in []: # DON'T HANDLE DEPS THIS WAY list(self.tasks):
-            # Skip all non-pending tasks
-            if self.tasks[tid]['status'] != States.pending:
-                continue
+        # it might be that in the course of the update, we've gone back to being
+        # pending - in which case, we should consider ourself for relaunch
+        if self.tasks[task_id]['status'] == States.pending:
+            self.launch_if_ready(task_id)
 
-            self.launch_if_ready(tid)
         return
 
     # this should be called by pieces of the DataFlowKernel that think that a task might
