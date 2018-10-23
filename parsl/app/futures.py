@@ -163,9 +163,17 @@ class DataFuture(Future):
             return False
 
     def done(self):
+        logger.debug("BENC: DataFuture {} done call".format(self))
         if self.parent:
-            return self.parent.done()
+            logger.debug("BENC: DataFuture {} done call - has parent".format(self))
+            p_done = self.parent.done()
+            s_done = super().done()
+            logger.error("BENC: internal consistency check: super() doneness is {}, parent {} doneeness (which will be reported) is {}".format(s_done, self.parent, p_done))
+            if p_done != s_done:
+                logger.error("BENC: internal consistency failure: super() doneness is {}, parent {} doneeness (which will be reported) is {}".format(s_done, self.parent, p_done))
+            return p_done
         else:
+            logger.debug("BENC: DataFuture {} done call - has no parent".format(self))
             return True
 
     def exception(self, timeout=None):
