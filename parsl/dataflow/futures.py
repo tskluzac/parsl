@@ -79,15 +79,19 @@ class AppFuture(Future):
              - stderr (str) : Stderr file of the app.
                    Default: None
         """
+        logger.debug("BENC: creating AppFuture")
         self._tid = tid
         super().__init__()
         self.prev_parent = None
-        self.parent = parent
+        self.parent = None
         self._update_lock = threading.Lock()
         self._parent_update_event = threading.Event()
         self._outputs = []
         self._stdout = stdout
         self._stderr = stderr
+
+        if parent is not None:
+            self.update_parent(parent)
 
     def parent_callback(self, executor_fu):
         """Callback from a parent future to update the AppFuture.
@@ -110,6 +114,7 @@ class AppFuture(Future):
         Updates the super() with the result() or exception()
         """
         # print("[RETRY:TODO] parent_Callback for {0}".format(executor_fu))
+        logger.debug("AppFuture parent_callback firing for AppFuture self={}".format(self))
         with self._update_lock:
 
             if not executor_fu.done():
@@ -130,10 +135,20 @@ class AppFuture(Future):
 
             try:
                 logger.debug("BENC: set_result path")
+                res = executor_fu.result()
+                if isinstance(res, RemoteException):
+                    logger.debug("BENC: set_result RemoteException path - reraising")
+                    res.reraise()
                 super().set_result(executor_fu.result())
+
             except Exception as e:
                 logger.debug("BENC: set_result - exception path, exception {}".format(e))
-                super().set_exception(e)
+                if executor_fu.retries_left > 0:
+                    # ignore this exception, because we'll assume some later parent executor
+                    # will provide the answer
+                    logger.debug("BENC: set_result - exception path but remaining retries - so not posting exception to AppFuture")
+                else:
+                    super().set_exception(e)
 
     @property
     def stdout(self):
@@ -158,34 +173,6 @@ class AppFuture(Future):
         fut.add_done_callback(self.parent_callback)
         self._parent_update_event.set()
 
-    def result(self, timeout=None):
-        """Result.
-
-        Waits for the result of the AppFuture
-        KWargs:
-        timeout (int): Timeout in seconds
-        """
-        try:
-            if self.parent:
-                res = self.parent.result(timeout=timeout)
-            else:
-                res = super().result(timeout=timeout)
-            if isinstance(res, RemoteException):
-                logger.debug("BENC: in the RemoteException .result() path, with res = {}".format(res))
-                res.reraise()
-            return res
-
-        except Exception as e:
-            if self.parent.retries_left > 0:
-                self._parent_update_event.wait()
-                self._parent_update_event.clear()
-                return self.result(timeout=timeout)
-            else:
-                if isinstance(e, RemoteException):
-                    e.reraise()
-                else:
-                    raise
-
     def cancel(self):
         if self.parent:
             return self.parent.cancel
@@ -203,33 +190,6 @@ class AppFuture(Future):
             return self.parent.running()
         else:
             return False
-
-    def done(self):
-        """Check if the future is done.
-
-        If a parent is set, we return the status of the parent.
-        else, there is no parent assigned, meaning the status is False.
-
-        Returns:
-              - True : If the future has successfully resolved.
-              - False : Pending resolution
-        """
-        if self.parent:
-            return self.parent.done()
-        else:
-            return False
-
-    def exception(self, timeout=None):
-        if self.parent:
-            return self.parent.exception(timeout=timeout)
-        else:
-            return False
-
-    def add_done_callback(self, fn):
-        if self.parent:
-            return self.parent.add_done_callback(fn)
-        else:
-            return super().add_done_callback(fn)
 
     @property
     def outputs(self):
