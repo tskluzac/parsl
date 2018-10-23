@@ -33,10 +33,35 @@ _STATE_TO_DESCRIPTION_MAP = {
 
 
 class AppFuture(Future):
-    """An AppFuture points at a Future returned from an Executor.
+    """An AppFuture wraps a sequence of Futures which may fail and be retried.
 
-    We are simply wrapping a AppFuture, and adding the specific case where, if the future
-    is resolved i.e file exists, then the DataFuture is assumed to be resolved.
+    TODO: what causes the retries? something in the DFK, not inside here, I guess?
+
+    An AppFuture starts with no parent future. A sequence of parent futures may
+    be assigned by code outside of this class, by passing that new parent future
+    into "update_future".
+
+    TODO: is it an error to update the parent future when we already have a result?
+    It should be, and this class should catch it - in a thread-safe manner.
+
+    The AppFuture will set its result to the result of the parent future, if that
+    parent future completes without an exception. This result setting (should/will/TODO)
+    cause .result(), .exception() and done callbacks to fire as expected when a
+    Future has a result set.
+
+    The AppFuture will not set its result to the result of the parent future, if
+    that parent future completes with an exception, and if that parent future
+    has retries left. In that case, no result(), exception() or done callbacks (should/will/TODO)
+    report a result.
+
+    The AppFuture will set its result to the result of the parent future, if that
+    parent future completes with an exception and if that parent future has no
+    retries left, or if it has no retry field. .result(), .exception() and done callbacks
+    will/should/TODO give a result as expected when a Future has a result set
+
+    The parent future may return a RemoteException as a result (rather than raising it
+    as an exception) and AppFuture will treat this an an exception for the above
+    retry and result handling behaviour.
 
     """
 
@@ -58,17 +83,26 @@ class AppFuture(Future):
         super().__init__()
         self.prev_parent = None
         self.parent = parent
-        self._parent_update_lock = threading.Lock()
+        self._update_lock = threading.Lock()
         self._parent_update_event = threading.Event()
         self._outputs = []
         self._stdout = stdout
         self._stderr = stderr
 
     def parent_callback(self, executor_fu):
-        """Callback from executor future to update the parent.
+        """Callback from a parent future to update the AppFuture.
+
+        Used internally by AppFuture, and should not be called by code using AppFuture.
 
         Args:
-            - executor_fu (Future): Future returned by the executor along with callback
+            - executor_fu (Future): Future returned by the executor along with callback.
+              This may not be the current parent future, as the parent future may have 
+              already been updated to point to a retrying execution, and in that case,
+              this is logged.
+
+              In the case that a new parent has been attached, we must immediately discard
+              this result no matter what it contains (although it might be interesting
+              to log if it was successful...)
 
         Returns:
             - None
@@ -76,10 +110,29 @@ class AppFuture(Future):
         Updates the super() with the result() or exception()
         """
         # print("[RETRY:TODO] parent_Callback for {0}".format(executor_fu))
-        if executor_fu.done() is True:
+        with self._update_lock:
+
+            if not executor_fu.done():
+                logger.error("BENC: callback future was not done, despite being passed to done callback")
+                raise ValueError("done callback called, despite future not reporting itself as done")
+
+            if executor_fu != self.parent:
+                logger.debug("parent_callback fired with parameter future that is not the current parent future: current parent future is {}, callback parameter future is {} - checking that we got an exception not a result".format(self.parent, executor_fu))
+
+                if executor_fu.exception() is None and not isinstance(executor_fu.result(), RemoteException):
+                    # ... then we completed with a value, not an exception or wrapped exception,
+                    # but we've got an updated executor future.
+                    # This is bad - for example, we've started a retry even though we have a result
+
+                    logger.error("BENC: callback was done without an exception, but parent has been changed since then - possible incorrect use of AppFuture? value is {}".format(executor_fu.result()))
+                    raise ValueError("done callback called without an exception, but parent has been changed since then - possible incorrect use of AppFuture?")
+                
+
             try:
+                logger.debug("BENC: set_result path")
                 super().set_result(executor_fu.result())
             except Exception as e:
+                logger.debug("BENC: set_result - exception path, exception {}".format(e))
                 super().set_exception(e)
 
     @property
@@ -118,6 +171,7 @@ class AppFuture(Future):
             else:
                 res = super().result(timeout=timeout)
             if isinstance(res, RemoteException):
+                logger.debug("BENC: in the RemoteException .result() path, with res = {}".format(res))
                 res.reraise()
             return res
 
