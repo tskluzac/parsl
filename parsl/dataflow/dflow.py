@@ -209,8 +209,10 @@ class DataFlowKernel(object):
         count = 0
         for dep in depends:
             if isinstance(dep, Future):
-                if self.tasks[dep.tid]['status'] not in FINAL_STATES:
+                if not dep.done():
                     count += 1
+            else:
+                raise ValueError("Dependency was not a Future: {}".format(dep))
 
         return count
 
@@ -292,6 +294,8 @@ class DataFlowKernel(object):
             if self.monitoring_config is not None:
                 task_log_info = self._create_task_log_info(task_id)
                 self.db_logger.info("Task Done", extra=task_log_info)
+            if not self.tasks[task_id]['app_fu'].done():
+                logger.error("Internal consistency error: app_fu is not done for task {}".format(task_id))
 
         if not memo_cbk and final_state_flag is True:
             # Update the memoizer with the new result if this is not a
