@@ -46,6 +46,7 @@ class Manager(object):
                 |                          |                IPC-Qeueues
 
     """
+
     def __init__(self,
                  task_q_url="tcp://127.0.0.1:50097",
                  result_q_url="tcp://127.0.0.1:50098",
@@ -100,9 +101,11 @@ class Manager(object):
         self.worker_count = math.floor(cores_on_node / cores_per_worker)
         logger.info("Manager will spawn {} workers".format(self.worker_count))
 
-        self.pending_task_queue = multiprocessing.Queue(maxsize=self.worker_count + max_queue_size)
+        self.pending_task_queue = multiprocessing.Queue(
+            maxsize=self.worker_count + max_queue_size)
         self.pending_result_queue = multiprocessing.Queue(maxsize=10 ^ 4)
-        self.ready_worker_queue = multiprocessing.Queue(maxsize=self.worker_count + 1)
+        self.ready_worker_queue = multiprocessing.Queue(
+            maxsize=self.worker_count + 1)
 
         self.max_queue_size = max_queue_size + self.worker_count
 
@@ -121,7 +124,7 @@ class Manager(object):
                'os': platform.system(),
                'hname': platform.node(),
                'dir': os.getcwd(),
-        }
+               }
         b_msg = json.dumps(msg).encode('utf-8')
         return b_msg
 
@@ -168,7 +171,8 @@ class Manager(object):
                 last_beat = time.time()
 
             if pending_task_count < self.max_queue_size and ready_worker_count > 0:
-                logger.debug("[TASK_PULL_THREAD] Requesting tasks: {}".format(ready_worker_count))
+                logger.debug("[TASK_PULL_THREAD] Requesting tasks: {}".format(
+                    ready_worker_count))
                 msg = ((ready_worker_count).to_bytes(4, "little"))
                 self.task_incoming.send(msg)
 
@@ -203,13 +207,15 @@ class Manager(object):
                 # Limit poll duration to heartbeat_period
                 # heartbeat_period is in s vs poll_timer in ms
                 if not poll_timer:
-                    poll_timer = 5000 # if we got no tasks, back off by at least 5s, rather than 1ms as before. that fits this scale better.
-                        # maybe this should be tweakable to go with scale? if changing it helps.
+                    # if we got no tasks, back off by at least 5s, rather than 1ms as before. that fits this scale better.
+                    poll_timer = 5000
+                    # maybe this should be tweakable to go with scale? if changing it helps.
                 poll_timer = min(self.heartbeat_period * 1000, poll_timer * 2)
 
                 # Only check if no messages were received.
                 if time.time() > last_interchange_contact + self.heartbeat_threshold:
-                    logger.critical("[TASK_PULL_THREAD] Missing contact with interchange beyond heartbeat_threshold")
+                    logger.critical(
+                        "[TASK_PULL_THREAD] Missing contact with interchange beyond heartbeat_threshold")
                     kill_event.set()
                     logger.critical("[TASK_PULL_THREAD] Exiting")
                     break
@@ -240,7 +246,8 @@ class Manager(object):
                 pass
 
             except Exception as e:
-                logger.exception("[RESULT_PUSH_THREAD] Got an exception: {}".format(e))
+                logger.exception(
+                    "[RESULT_PUSH_THREAD] Got an exception: {}".format(e))
 
         logger.critical("[RESULT_PUSH_THREAD] Exiting")
 
@@ -259,7 +266,7 @@ class Manager(object):
                                                              self.pending_task_queue,
                                                              self.pending_result_queue,
                                                              self.ready_worker_queue,
-                                                         ))
+                                                             ))
             p.start()
             self.procs[worker_id] = p
 
@@ -278,7 +285,8 @@ class Manager(object):
         # This might need a multiprocessing event to signal back.
         while not self._kill_event.is_set():
             time.sleep(0.1)
-        logger.critical("[MAIN] Received kill event, terminating worker processes")
+        logger.critical(
+            "[MAIN] Received kill event, terminating worker processes")
 
         self._task_puller_thread.join()
         self._result_pusher_thread.join()
@@ -287,7 +295,8 @@ class Manager(object):
             logger.critical("Terminating worker {}:{}".format(self.procs[proc_id],
                                                               self.procs[proc_id].is_alive()))
             self.procs[proc_id].join()
-            logger.debug("Worker:{} joined successfully".format(self.procs[proc_id]))
+            logger.debug("Worker:{} joined successfully".format(
+                self.procs[proc_id]))
 
         self.task_incoming.close()
         self.result_outgoing.close()
@@ -330,7 +339,8 @@ def execute_task(bufs):
         exec(code, user_ns, user_ns)
 
     except Exception as e:
-        logger.warning("Caught exception; will raise it: {}, code is {}".format(e, code), exc_info=True)
+        logger.warning("Caught exception; will raise it: {}, code is {}".format(
+            e, code), exc_info=True)
         raise e
 
     else:
@@ -367,14 +377,16 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
         try:
             worker_queue.get()
         except queue.Empty:
-            logger.warning("Worker ID: {} failed to remove itself from ready_worker_queue".format(worker_id))
+            logger.warning(
+                "Worker ID: {} failed to remove itself from ready_worker_queue".format(worker_id))
             pass
 
         try:
             result = execute_task(req['buffer'])
             serialized_result = serialize_object(result)
         except Exception as e:
-            result_package = {'task_id': tid, 'exception': serialize_object("Exception which we cannot send the full exception object back for: {}".format(e))}
+            result_package = {'task_id': tid, 'exception': serialize_object(
+                "Exception which we cannot send the full exception object back for: {}".format(e))}
             # Exceptions can't be pickled by this serialisation mechansm....
             # result_package = {'task_id': tid, 'exception': serialize_object(e)}
             # logger.debug("No result due to exception: {} with result package {}".format(e, result_package))
@@ -401,7 +413,8 @@ def start_file_logger(filename, rank, name='parsl', level=logging.DEBUG, format_
        -  None
     """
     if format_string is None:
-        format_string = "%(asctime)s %(name)s:%(lineno)d Rank:{0} [%(levelname)s]  %(message)s".format(rank)
+        format_string = "%(asctime)s %(name)s:%(lineno)d Rank:{0} [%(levelname)s]  %(message)s".format(
+            rank)
 
     global logger
     logger = logging.getLogger(name)

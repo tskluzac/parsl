@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 class CommandClient(object):
     """ CommandClient
     """
+
     def __init__(self, ip_address, port_range):
         """
         Parameters
@@ -49,6 +50,7 @@ class CommandClient(object):
 class TasksOutgoing(object):
     """ Outgoing task queue from the executor to the Interchange
     """
+
     def __init__(self, ip_address, port_range):
         """
         Parameters
@@ -87,7 +89,8 @@ class TasksOutgoing(object):
                 return
             else:
                 timeout_ms += 1
-                logger.debug("Not sending due full zmq pipe, timeout: {} ms".format(timeout_ms))
+                logger.debug(
+                    "Not sending due full zmq pipe, timeout: {} ms".format(timeout_ms))
 
     def close(self):
         self.zmq_socket.close()

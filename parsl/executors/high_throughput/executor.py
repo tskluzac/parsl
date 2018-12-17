@@ -139,7 +139,8 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
         self.worker_debug = worker_debug
         self.storage_access = storage_access if storage_access is not None else []
         if len(self.storage_access) > 1:
-            raise ConfigurationError('Multiple storage access schemes are not supported')
+            raise ConfigurationError(
+                'Multiple storage access schemes are not supported')
         self.working_dir = working_dir
         self.managed = managed
         self.blocks = []
@@ -183,7 +184,8 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
         logger.debug("Launch command: {}".format(self.launch_cmd))
 
         self._scaling_enabled = self.provider.scaling_enabled
-        logger.debug("Starting HighThroughputExecutor with provider:\n%s", self.provider)
+        logger.debug(
+            "Starting HighThroughputExecutor with provider:\n%s", self.provider)
         if hasattr(self.provider, 'init_blocks'):
             try:
                 self.scale_out(blocks=self.provider.init_blocks)
@@ -195,9 +197,12 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
     def start(self):
         """Create the Interchange process and connect to it.
         """
-        self.outgoing_q = zmq_pipes.TasksOutgoing("127.0.0.1", self.interchange_port_range)
-        self.incoming_q = zmq_pipes.ResultsIncoming("127.0.0.1", self.interchange_port_range)
-        self.command_client = zmq_pipes.CommandClient("127.0.0.1", self.interchange_port_range)
+        self.outgoing_q = zmq_pipes.TasksOutgoing(
+            "127.0.0.1", self.interchange_port_range)
+        self.incoming_q = zmq_pipes.ResultsIncoming(
+            "127.0.0.1", self.interchange_port_range)
+        self.command_client = zmq_pipes.CommandClient(
+            "127.0.0.1", self.interchange_port_range)
 
         self.is_alive = True
 
@@ -207,7 +212,8 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
         self._start_queue_management_thread()
         self._start_local_queue_process()
 
-        logger.debug("Created management thread: {}".format(self._queue_management_thread))
+        logger.debug("Created management thread: {}".format(
+            self._queue_management_thread))
 
         if self.provider:
             self.initialize_scaling()
@@ -261,11 +267,13 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
                 pass
 
             except IOError as e:
-                logger.exception("[MTHREAD] Caught broken queue with exception code {}: {}".format(e.errno, e))
+                logger.exception(
+                    "[MTHREAD] Caught broken queue with exception code {}: {}".format(e.errno, e))
                 return
 
             except Exception as e:
-                logger.exception("[MTHREAD] Caught unknown exception: {}".format(e))
+                logger.exception(
+                    "[MTHREAD] Caught unknown exception: {}".format(e))
                 return
 
             else:
@@ -280,21 +288,27 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
                             msg = pickle.loads(serialized_msg)
                             tid = msg['task_id']
                         except pickle.UnpicklingError:
-                            raise BadMessage("Message received could not be unpickled")
+                            raise BadMessage(
+                                "Message received could not be unpickled")
 
                         except Exception:
-                            raise BadMessage("Message received does not contain 'task_id' field")
+                            raise BadMessage(
+                                "Message received does not contain 'task_id' field")
 
                         if tid == -1 and 'exception' in msg:
-                            logger.warning("Executor shutting down due to version mismatch in interchange")
-                            self._executor_exception, _ = deserialize_object(msg['exception'])
-                            logger.exception("Exception: {}".format(self._executor_exception))
+                            logger.warning(
+                                "Executor shutting down due to version mismatch in interchange")
+                            self._executor_exception, _ = deserialize_object(
+                                msg['exception'])
+                            logger.exception("Exception: {}".format(
+                                self._executor_exception))
                             # Set bad state to prevent new tasks from being submitted
                             self._executor_bad_state.set()
                             # We set all current tasks to this exception to make sure that
                             # this is raised in the main context.
                             for task in self.tasks:
-                                self.tasks[task].set_exception(self._executor_exception)
+                                self.tasks[task].set_exception(
+                                    self._executor_exception)
                             break
 
                         task_fut = self.tasks[tid]
@@ -306,14 +320,16 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
                         elif 'exception' in msg:
                             try:
                                 s, _ = deserialize_object(msg['exception'])
-                                exception = ValueError("Remote exception description: {}".format(s))
+                                exception = ValueError(
+                                    "Remote exception description: {}".format(s))
                                 task_fut.set_exception(exception)
                             except Exception as e:
                                 # TODO could be a proper wrapped exception?
                                 task_fut.set_exception(
                                     DeserializationError("Received exception, but handling also threw an exception: {}".format(e)))
                         else:
-                            raise BadMessage("Message received is neither result or exception")
+                            raise BadMessage(
+                                "Message received is neither result or exception")
 
             if not self.is_alive:
                 break
@@ -342,17 +358,21 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
                                           "logdir": "{}/{}".format(self.run_dir, self.label),
                                           "heartbeat_threshold": self.heartbeat_threshold,
                                           "logging_level": logging.DEBUG if self.worker_debug else logging.INFO
-                                  },
-        )
+                                          },
+                                  )
         self.queue_proc.start()
         try:
-            (worker_task_port, worker_result_port) = comm_q.get(block=True, timeout=120)
+            (worker_task_port, worker_result_port) = comm_q.get(
+                block=True, timeout=120)
         except queue.Empty:
-            logger.error("Interchange has not completed initialization in 120s. Aborting")
+            logger.error(
+                "Interchange has not completed initialization in 120s. Aborting")
             raise Exception("Interchange failed to start")
 
-        self.worker_task_url = "tcp://{}:{}".format(self.address, worker_task_port)
-        self.worker_result_url = "tcp://{}:{}".format(self.address, worker_result_port)
+        self.worker_task_url = "tcp://{}:{}".format(
+            self.address, worker_task_port)
+        self.worker_result_url = "tcp://{}:{}".format(
+            self.address, worker_result_port)
 
     def _start_queue_management_thread(self):
         """Method to start the management thread as a daemon.
@@ -362,7 +382,8 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
         """
         if self._queue_management_thread is None:
             logger.debug("Starting queue management thread")
-            self._queue_management_thread = threading.Thread(target=self._queue_management_worker)
+            self._queue_management_thread = threading.Thread(
+                target=self._queue_management_worker)
             self._queue_management_thread.daemon = True
             self._queue_management_thread.start()
             logger.debug("Started queue management thread")
@@ -421,7 +442,8 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
         self._task_counter += 1
         task_id = self._task_counter
 
-        logger.debug("Pushing function {} to queue with args {}".format(func, args))
+        logger.debug(
+            "Pushing function {} to queue with args {}".format(func, args))
 
         self.tasks[task_id] = Future()
 
