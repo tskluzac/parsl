@@ -196,3 +196,23 @@ class ExtremeScaleExecutor(HighThroughputExecutor, RepresentationMixin):
             except Exception as e:
                 logger.error("Scaling out failed: {}".format(e))
                 raise e
+
+    def scale_out(self, blocks=1):
+        """Scales out the number of blocks by "blocks"
+
+        Raises:
+             NotImplementedError
+        """
+        r = []
+        for i in range(blocks):
+            if self.provider:
+                block = self.provider.submit(self.launch_cmd, 1, self.ranks_per_node)
+                logger.debug("Launched block {}:{}".format(i, block))
+                if not block:
+                    raise(ScalingFailed(self.provider.label,
+                                        "Attempts to provision nodes via provider has failed"))
+                self.blocks.extend([block])
+            else:
+                logger.error("No execution provider available")
+                r = None
+        return r
