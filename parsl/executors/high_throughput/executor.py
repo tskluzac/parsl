@@ -467,7 +467,7 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
         r = []
         for i in range(blocks):
             if self.provider:
-                block = self.provider.submit(self.launch_cmd, 1, 1)
+                block = self.provider.submit(self.launch_cmd, 1, self.ranks_per_node)
                 logger.debug("Launched block {}:{}".format(i, block))
                 if not block:
                     raise(ScalingFailed(self.provider.label,
