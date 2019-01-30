@@ -5,13 +5,6 @@ import os
 
 
 logger = logging.getLogger(__name__)
-# Add StreamHandler to print error Globus events to stderr
-handler = logging.StreamHandler()
-handler.setLevel(logging.WARN)
-format_string = "%(asctime)s %(name)s:%(lineno)d [%(levelname)s]  %(message)s"
-formatter = logging.Formatter(format_string, datefmt='%Y-%m-%d %H:%M:%S')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 """
