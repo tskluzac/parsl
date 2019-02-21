@@ -30,110 +30,6 @@ LOOP_SLOWDOWN = 0.00  # in seconds
 HEARTBEAT_CODE = (2 ** 32) - 1
 
 
-# class FunctionRunner:
-#
-#     def __init__(self, user_id, function_type, function_name, func_pkl=None, bash_cmd=None, data_pointer=None):
-#
-#         self.function_type = function_type
-#         self.function_name = function_name
-#         self.user_id = user_id
-#         self.function_path = "{}/{}/{}".format(container_base, user_id, function_name)
-#         self.func_pkl = func_pkl
-#         self.bash_cmd = bash_cmd
-#         self.data_pointer = data_pointer
-#
-#     def create_function_dir(self):
-#         self.logger.info("Creating function directory...")
-#         try:
-#             os.mkdir(self.function_path)
-#         except FileExistsError:
-#             self.logger.error("Function directory already exists!")
-#
-#     def run_bash_function(self):
-#         self.logger.info("In theory, I should also launch this in the runtime, but it goes to subsystem!")
-#
-#         prev_cwd = os.getcwd()
-#
-#         # CD into the user's function directory.
-#         os.chdir(self.function_path)
-#
-#         fut = yadu_executor(self.bash_cmd, os.getcwd(), self.logger)
-#         reply = fut['result']
-#
-#         # Set the path back to where it previously was.
-#         os.chdir(prev_cwd)
-#
-#         return reply
-#
-#     def run_py_function(self):
-#         """ Run Python function after loading pickle and saving
-#             copy to the appropriate directory (i.e., runtime). """
-#         new_func = pkl.loads(self.func_pkl)
-#
-#         # TODO: do time.time()
-#         dt = datetime.now()
-#         pkl_path = self.function_path + "/" + str(dt)
-#
-#         with open(pkl_path, "wb") as dill_file:
-#             pkl.dump(new_func, dill_file)
-#
-#         # TODO: Add data pointer as additional argument.
-#         new_func()
-#
-#
-# def worker(ip, port, logger):
-#
-#     # TODO: Integrate this!
-#     # Need to establish our worker node attributes (and directory) only once.
-#
-#     logger.info("Commencing worker process...")
-#     serv = ZmqClient(logger, ip, port)
-#     count = 0
-#
-#     while True:
-#         msg = serv.recv()
-#         count += 1
-#         (msg_type, site_id, task_inputs) = pkl2.loads(msg)
-#
-#         try:
-#             invocation_start = time.time()
-#
-#             # Invoke the servable
-#             fut = None
-#             reply = None
-#
-#             process_time = 0.0
-#
-#             # To create some semblance of uniqueness, use time.clock() to name function.
-#             function_name = str(time.time())
-#
-#             print(function_name)
-#
-#             # Arg order: user_id, function_type, function_name, func_pkl=None, bash_cmd=None, data_pointer=None
-#             # TODO: Hard-coded to run bash. Edit to re-allow Python functions when allowed in aps-pilot codebase.
-#             fr = FunctionRunner(wn.user_id, "bash", function_name, bash_cmd=task_inputs['command'], logger=logger)
-#             fr.create_function_dir()
-#
-#             reply = fr.run_bash_function()
-#
-#             invocation_end = time.time()
-#             # Append timing information
-#             invocation_time = (invocation_end - invocation_start) * 1000
-#             if invocation_time < process_time:
-#                 process_time = 0.0
-#             response = {"process_time": process_time, "invocation_time": invocation_time, "response": reply}
-#             logger.info(reply)
-#             serv.send(pkl2.dumps(response))
-#         except Exception as e:
-#             serv.send(pkl2.dumps({"Error": "Failed to invoke function."}))
-#             logger.error(e)
-#         logger.info("Checking %s > 5" % count)
-#         if count > 5:
-#             logger.info("Flushing dfk tasks... ")
-#             parsl.dfk().tasks = {}
-#             count = 0
-
-
 class Manager(object):
 
     # TODO: Tyler -- get it to run in runtime thread.
@@ -224,6 +120,7 @@ class Manager(object):
         self.worker_count = min(max_workers,
                                 math.floor(cores_on_node / cores_per_worker))
         logger.info("Manager will spawn {} workers".format(self.worker_count))
+        logger.info("POTATOPOTATOPOTATO")
 
         self.pending_task_queue = multiprocessing.Queue()
         self.pending_result_queue = multiprocessing.Queue()
@@ -235,6 +132,8 @@ class Manager(object):
 
         self.heartbeat_period = heartbeat_period
         self.heartbeat_threshold = heartbeat_threshold
+
+        logger.info("CWD: " + os.getcwd())
 
 
 
@@ -375,6 +274,7 @@ class Manager(object):
 
         TODO: Move task receiving to a thread
         """
+        print("HI 1/5")
         start = time.time()
         self._kill_event = threading.Event()
 
@@ -428,6 +328,18 @@ def execute_task(bufs):
 
     Returns the result or throws exception.
     """
+
+    print("HI 2/5")
+
+
+    # TODO TYLER: First create a directory for the function.
+
+    # os.chdir("/home/skluzacek/funcx-stuff/skluzacek/new-func")
+    # os.chdir("./skluzacek/new-func")
+
+
+    # TODO TYLER: Second cd to the directory, run the function, then cd back.
+
     user_ns = locals()
     user_ns.update({'__builtins__': __builtins__})
 
@@ -451,10 +363,14 @@ def execute_task(bufs):
     try:
         # logger.debug("[RUNNER] Executing: {0}".format(code))
         exec(code, user_ns, user_ns)
+        os.chdir('..')
 
     except Exception as e:
         logger.warning("Caught exception; will raise it: {}".format(e), exc_info=True)
         raise e
+
+    # finally:
+    #     os.chdir('..')
 
     else:
         # logger.debug("[RUNNER] Result: {0}".format(user_ns.get(resultname)))
@@ -468,6 +384,15 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
     Pop request from queue
     Put result into result_queue
     """
+
+    print("HI 3/5")
+
+    logger.debug("CWD: " + os.getcwd())
+
+    # TODO: TYLER -- REMOVE THIS.
+    if not os.path.isdir('./foofoofoofoofoo'):
+        os.mkdir('./foofoofoofoofoo')
+
     start_file_logger('{}/{}/worker_{}.log'.format(args.logdir, pool_id, worker_id),
                       worker_id,
                       name="worker_log",
@@ -492,8 +417,9 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
             logger.warning("Worker ID: {} failed to remove itself from ready_worker_queue".format(worker_id))
             pass
 
-        # TYLER: Spinning up these runnables as a thread.
+        # Spinning up these runnables as own threads.
         try:
+
             result_thread = threading.Thread(execute_task(req['buffer']))
             result_thread.start()
 
@@ -525,6 +451,7 @@ def start_file_logger(filename, rank, name='parsl', level=logging.DEBUG, format_
     Returns:
        -  None
     """
+    print("HI 4/5")
     if format_string is None:
         format_string = "%(asctime)s.%(msecs)03d %(name)s:%(lineno)d Rank:{0} [%(levelname)s]  %(message)s".format(rank)
 

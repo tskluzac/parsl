@@ -167,14 +167,14 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         self.heartbeat_threshold = heartbeat_threshold
         self.heartbeat_period = heartbeat_period
         self.suppress_failure = suppress_failure
-        self.run_dir = './skluzacek'
+        self.run_dir = '.'
 
         ##############################
         # TODO: Tyler -- my last name is hardcoded ^^^.
 
         # Create user parsl runnable directory.
-        if not os.path.isdir(self.run_dir):
-            os.mkdir(self.run_dir)
+        if not os.path.isdir('./skluzacek'):
+            os.mkdir('./skluzacek')
 
         #################################
 
