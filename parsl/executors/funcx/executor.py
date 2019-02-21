@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 BUFFER_THRESHOLD = 1024 * 1024
 ITEM_THRESHOLD = 1024
 
+import os
+
 
 class FuncXExecutor(ParslExecutor, RepresentationMixin):
     """Executor designed for cluster-scale
@@ -166,8 +168,19 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         self.heartbeat_threshold = heartbeat_threshold
         self.heartbeat_period = heartbeat_period
         self.suppress_failure = suppress_failure
-        self.run_dir = '.'
+        self.run_dir = './skluzacek'
 
+        ##############################
+        # TODO: Tyler -- my last name is hardcoded ^^^.
+
+        # Create user parsl runnable directory.
+        if not os.path.isdir(self.run_dir):
+            os.mkdir(self.run_dir)
+
+        #################################
+
+
+        # TODO: TYLER -- add bit here that is the runnable directory name.
         if not launch_cmd:
             self.launch_cmd = ("process_worker_pool.py {debug} {max_workers} "
                                "-c {cores_per_worker} "
