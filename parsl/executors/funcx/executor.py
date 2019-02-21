@@ -1,12 +1,13 @@
 """HighThroughputExecutor builds on the Swift/T EMEWS architecture to use MPI for fast task distribution
 """
 
-from concurrent.futures import Future
-import logging
-import threading
-import queue
-import pickle
 from multiprocessing import Process, Queue
+from concurrent.futures import Future
+import threading
+import logging
+import pickle
+import queue
+import os
 
 from ipyparallel.serialize import pack_apply_message  # ,unpack_apply_message
 from ipyparallel.serialize import deserialize_object  # ,serialize_object
@@ -24,8 +25,6 @@ logger = logging.getLogger(__name__)
 
 BUFFER_THRESHOLD = 1024 * 1024
 ITEM_THRESHOLD = 1024
-
-import os
 
 
 class FuncXExecutor(ParslExecutor, RepresentationMixin):

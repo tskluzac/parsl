@@ -492,12 +492,15 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
             logger.warning("Worker ID: {} failed to remove itself from ready_worker_queue".format(worker_id))
             pass
 
-        # TODO Tyler --- HERE: Spin up thread.
-        threading.Thread(print("Hello"))
-
+        # TYLER: Spinning up these runnables as a thread.
         try:
-            result = execute_task(req['buffer'])
-            serialized_result = serialize_object(result)
+            result_thread = threading.Thread(execute_task(req['buffer']))
+            result_thread.start()
+
+            # result_thread.join()
+            # serialized_result = serialize_object(result_thread)
+            serialized_result = "SUBMITTED"
+
         except Exception as e:
             result_package = {'task_id': tid, 'exception': serialize_object("Exception which we cannot send the full exception object back for: {}".format(e))}
         else:
