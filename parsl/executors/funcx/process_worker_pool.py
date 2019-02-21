@@ -32,8 +32,7 @@ HEARTBEAT_CODE = (2 ** 32) - 1
 
 # class FunctionRunner:
 #
-#     # TODO: Integrate this.
-#     def __init__(self, user_id, function_type, function_name, logger, func_pkl=None, bash_cmd=None, data_pointer=None):
+#     def __init__(self, user_id, function_type, function_name, func_pkl=None, bash_cmd=None, data_pointer=None):
 #
 #         self.function_type = function_type
 #         self.function_name = function_name
@@ -236,6 +235,13 @@ class Manager(object):
 
         self.heartbeat_period = heartbeat_period
         self.heartbeat_threshold = heartbeat_threshold
+
+        # TODO: Tyler -- move my name to user_data_dir
+        # self.user_data_dir = os.getcwd() + "/skluzacek"
+        #
+        # if not os.path.isdir(self.user_data_dir):
+        #     os.mkdir(self.user_data_dir)
+
 
     def create_reg_message(self):
         """ Creates a registration message to identify the worker to the interchange
@@ -492,7 +498,7 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
             pass
 
         # TODO Tyler --- HERE: Spin up thread.
-        # threading.c
+        threading.Thread(print("Hello"))
 
         try:
             result = execute_task(req['buffer'])

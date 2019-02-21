@@ -26,7 +26,7 @@ BUFFER_THRESHOLD = 1024 * 1024
 ITEM_THRESHOLD = 1024
 
 
-class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
+class FuncXExecutor(ParslExecutor, RepresentationMixin):
     """Executor designed for cluster-scale
 
     The HighThroughputExecutor system has the following components:
@@ -125,7 +125,7 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
     """
 
     def __init__(self,
-                 label='HighThroughputExecutor',
+                 label='FuncXExecutor',
                  provider=LocalProvider(),
                  launch_cmd=None,
                  address="127.0.0.1",
@@ -142,7 +142,7 @@ class HighThroughputExecutor(ParslExecutor, RepresentationMixin):
                  suppress_failure=False,
                  managed=True):
 
-        logger.debug("Initializing HighThroughputExecutor")
+        logger.debug("Initializing FuncXExecutor")
 
         self.label = label
         self.launch_cmd = launch_cmd
