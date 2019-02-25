@@ -1,4 +1,4 @@
-"""HighThroughputExecutor builds on the Swift/T EMEWS architecture to use MPI for fast task distribution
+"""FuncXExecutor builds on the Swift/T EMEWS architecture to use MPI for fast task distribution
 """
 
 from multiprocessing import Process, Queue
@@ -12,8 +12,8 @@ import os
 from ipyparallel.serialize import pack_apply_message  # ,unpack_apply_message
 from ipyparallel.serialize import deserialize_object  # ,serialize_object
 
-from parsl.executors.high_throughput import zmq_pipes
-from parsl.executors.high_throughput import interchange
+from parsl.executors.funcx import zmq_pipes
+from parsl.executors.funcx import interchange
 from parsl.executors.errors import *
 from parsl.executors.base import ParslExecutor
 from parsl.dataflow.error import ConfigurationError
@@ -30,12 +30,12 @@ ITEM_THRESHOLD = 1024
 class FuncXExecutor(ParslExecutor, RepresentationMixin):
     """Executor designed for cluster-scale
 
-    The HighThroughputExecutor system has the following components:
-      1. The HighThroughputExecutor instance which is run as part of the Parsl script.
+    The FuncXExecutor system has the following components:
+      1. The FuncXExecutor instance which is run as part of the Parsl script.
       2. The Interchange which is acts as a load-balancing proxy between workers and Parsl
       3. The multiprocessing based worker pool which coordinates task execution over several
          cores on a node.
-      4. ZeroMQ pipes connect the HighThroughputExecutor, Interchange and the process_worker_pool
+      4. ZeroMQ pipes connect the FuncXExecutor, Interchange and the process_worker_pool
 
     Here is a diagram
 
@@ -85,7 +85,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         workers will be running. This can be either a hostname as returned by `hostname` or an
         IP address. Most login nodes on clusters have several network interfaces available, only
         some of which can be reached from the compute nodes.  Some trial and error might be
-        necessary to indentify what addresses are reachable from compute nodes.
+        necessary to identify what FuncXExecutor addresses are reachable from compute nodes.
 
     worker_ports : (int, int)
         Specify the ports to be used by workers to connect to Parsl. If this option is specified,
@@ -171,17 +171,17 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
 
         ##############################
         # TODO: Tyler -- my last name is hardcoded ^^^.
-
         # Create user parsl runnable directory.
         if not os.path.isdir('./skluzacek'):
             os.mkdir('./skluzacek')
 
         #################################
 
-
         # TODO: TYLER -- add bit here that is the runnable directory name.
+        print(os.getcwd())
+
         if not launch_cmd:
-            self.launch_cmd = ("process_worker_pool.py {debug} {max_workers} "
+            self.launch_cmd = ("funcx_worker_pool.py {debug} {max_workers} "
                                "-c {cores_per_worker} "
                                "--task_url={task_url} "
                                "--result_url={result_url} "
@@ -211,7 +211,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         logger.debug("Launch command: {}".format(self.launch_cmd))
 
         self._scaling_enabled = self.provider.scaling_enabled
-        logger.debug("Starting HighThroughputExecutor with provider:\n%s", self.provider)
+        logger.debug("Starting FuncXExecutor with provider:\n%s", self.provider)
         if hasattr(self.provider, 'init_blocks'):
             try:
                 self.scale_out(blocks=self.provider.init_blocks)
@@ -240,7 +240,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
             self.initialize_scaling()
         else:
             self._scaling_enabled = False
-            logger.debug("Starting HighThroughputExecutor with no provider")
+            logger.debug("Starting FuncXExecutor with no provider")
 
     def _queue_management_worker(self):
         """Listen to the queue for task status messages and handle them.
@@ -444,6 +444,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         Returns:
               Future
         """
+
         if self._executor_bad_state.is_set():
             raise self._executor_exception
 
@@ -529,9 +530,9 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
              NotImplementedError
         """
 
-        logger.warning("Attempting HighThroughputExecutor shutdown")
+        logger.warning("Attempting FuncXExecutor shutdown")
         # self.outgoing_q.close()
         # self.incoming_q.close()
         self.queue_proc.terminate()
-        logger.warning("Finished HighThroughputExecutor shutdown attempt")
+        logger.warning("Finished FuncXExecutor shutdown attempt")
         return True

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
-import threading
-import platform
-import datetime
 import argparse
 import logging
+import os
+import sys
+import sys
+import platform
+# import random
+import threading
 import pickle
+import time
 import queue
+import uuid
+import zmq
 import math
 import json
-import time
-import uuid
-import sys
-import zmq
-import os
-
 
 from parsl.version import VERSION as PARSL_VERSION
 import multiprocessing
@@ -31,20 +31,6 @@ HEARTBEAT_CODE = (2 ** 32) - 1
 
 
 class Manager(object):
-
-    # TODO: Tyler -- get it to run in runtime thread.
-    # TODO: Tyler -- container stuff.
-    # TODO: Tyler -- take the node manager stuff (directory creation) and have the worker do it.
-
-    # Version 1...
-    # Step 1. Pull task off the queue.
-    # Step 2. Create sandbox for the function to execute in.
-    # Step 3. Put the function in the sandbox.
-    # Step 4. Run the function.
-    # Step 5. Don't kill the thread, pull another task off the queue.
-
-    # Version 2...
-    # Worker can start runtimes or execute within a runtime.
     """ Manager manages task execution by the workers
 
                 |         0mq              |    Manager         |   Worker Processes
@@ -120,7 +106,6 @@ class Manager(object):
         self.worker_count = min(max_workers,
                                 math.floor(cores_on_node / cores_per_worker))
         logger.info("Manager will spawn {} workers".format(self.worker_count))
-        logger.info("POTATOPOTATOPOTATO")
 
         self.pending_task_queue = multiprocessing.Queue()
         self.pending_result_queue = multiprocessing.Queue()
@@ -132,10 +117,8 @@ class Manager(object):
 
         self.heartbeat_period = heartbeat_period
         self.heartbeat_threshold = heartbeat_threshold
-
-        logger.info("CWD: " + os.getcwd())
-
-
+        self.namespace = "sample-namespace"
+        self.username = "skluzacek"
 
     def create_reg_message(self):
         """ Creates a registration message to identify the worker to the interchange
@@ -274,7 +257,6 @@ class Manager(object):
 
         TODO: Move task receiving to a thread
         """
-        print("HI 1/5")
         start = time.time()
         self._kill_event = threading.Event()
 
@@ -284,8 +266,8 @@ class Manager(object):
                                                              self.uid,
                                                              self.pending_task_queue,
                                                              self.pending_result_queue,
-                                                             self.ready_worker_queue
-                                                             ))
+                                                             self.ready_worker_queue,
+                                                         ))
             p.start()
             self.procs[worker_id] = p
 
@@ -328,22 +310,17 @@ def execute_task(bufs):
 
     Returns the result or throws exception.
     """
-
-    print("HI 2/5")
-
-
-    # TODO TYLER: First create a directory for the function.
-
-    # os.chdir("/home/skluzacek/funcx-stuff/skluzacek/new-func")
-    # os.chdir("./skluzacek/new-func")
-
-
-    # TODO TYLER: Second cd to the directory, run the function, then cd back.
-
     user_ns = locals()
     user_ns.update({'__builtins__': __builtins__})
 
     f, args, kwargs = unpack_apply_message(bufs, user_ns, copy=False)
+
+    # Make an appropriate directory
+    # TODO: Hardcode.
+    # TODO: hold username in manager on init.
+    if not os.path.isdir('./skluzacek/potato'):
+        os.mkdir('./skluzacek/potato')
+
 
     # We might need to look into callability of the function from itself
     # since we change it's name in the new namespace
@@ -362,15 +339,14 @@ def execute_task(bufs):
                                            argname, kwargname)
     try:
         # logger.debug("[RUNNER] Executing: {0}".format(code))
+        orig_dir = os.getcwd()
+        os.chdir('./skluzacek/potato/')
         exec(code, user_ns, user_ns)
-        os.chdir('..')
+        os.chdir(orig_dir)
 
     except Exception as e:
         logger.warning("Caught exception; will raise it: {}".format(e), exc_info=True)
         raise e
-
-    # finally:
-    #     os.chdir('..')
 
     else:
         # logger.debug("[RUNNER] Result: {0}".format(user_ns.get(resultname)))
@@ -379,20 +355,12 @@ def execute_task(bufs):
 
 def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
     """
+
     Put request token into queue
     Get task from task_queue
     Pop request from queue
     Put result into result_queue
     """
-
-    print("HI 3/5")
-
-    logger.debug("CWD: " + os.getcwd())
-
-    # TODO: TYLER -- REMOVE THIS.
-    if not os.path.isdir('./foofoofoofoofoo'):
-        os.mkdir('./foofoofoofoofoo')
-
     start_file_logger('{}/{}/worker_{}.log'.format(args.logdir, pool_id, worker_id),
                       worker_id,
                       name="worker_log",
@@ -407,7 +375,7 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
         worker_queue.put(worker_id)
 
         # The worker will receive {'task_id':<tid>, 'buffer':<buf>}
-        req = task_queue.get()  # Step 1. Worker pulls a task.
+        req = task_queue.get()
         tid = req['task_id']
         logger.info("Received task {}".format(tid))
 
@@ -417,26 +385,28 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
             logger.warning("Worker ID: {} failed to remove itself from ready_worker_queue".format(worker_id))
             pass
 
-        # Spinning up these runnables as own threads.
-        try:
+        # NOTE: thread is asynchronous, and only shuts down at process-end. No reply sent back to host.
+        task_execute_thread = threading.Thread(task_submit(req, tid, result_queue))
+        task_execute_thread.start()
 
-            result_thread = threading.Thread(execute_task(req['buffer']))
-            result_thread.start()
 
-            # result_thread.join()
-            # serialized_result = serialize_object(result_thread)
-            serialized_result = "SUBMITTED"
+def task_submit(req, tid, result_queue):
+    try:
+        result = threading.Thread(execute_task(req['buffer']))
+        serialized_result = serialize_object(result)
+    except Exception as e:
+        result_package = {'task_id': tid, 'exception': serialize_object(
+            "Exception which we cannot send the full exception object back for: {}".format(e))}
+    else:
+        result_package = {'task_id': tid, 'result': serialized_result}
+        # logger.debug("Result: {}".format(result))
 
-        except Exception as e:
-            result_package = {'task_id': tid, 'exception': serialize_object("Exception which we cannot send the full exception object back for: {}".format(e))}
-        else:
-            result_package = {'task_id': tid, 'result': serialized_result}
-            # logger.debug("Result: {}".format(result))
+    logger.info("Completed task {}".format(tid))
+    pkl_package = pickle.dumps(result_package)
 
-        logger.info("Completed task {}".format(tid))
-        pkl_package = pickle.dumps(result_package)
+    result_queue.put(pkl_package)
 
-        result_queue.put(pkl_package)
+    return None
 
 
 def start_file_logger(filename, rank, name='parsl', level=logging.DEBUG, format_string=None):
@@ -451,7 +421,6 @@ def start_file_logger(filename, rank, name='parsl', level=logging.DEBUG, format_
     Returns:
        -  None
     """
-    print("HI 4/5")
     if format_string is None:
         format_string = "%(asctime)s.%(msecs)03d %(name)s:%(lineno)d Rank:{0} [%(levelname)s]  %(message)s".format(rank)
 
