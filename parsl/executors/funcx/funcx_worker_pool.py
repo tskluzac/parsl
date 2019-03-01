@@ -4,9 +4,7 @@ import argparse
 import logging
 import os
 import sys
-import sys
 import platform
-# import random
 import threading
 import pickle
 import time
@@ -54,7 +52,8 @@ class Manager(object):
                  max_workers=float('inf'),
                  uid=None,
                  heartbeat_threshold=120,
-                 heartbeat_period=30):
+                 heartbeat_period=30,
+                 user_dir=None):
         """
         Parameters
         ----------
@@ -117,8 +116,7 @@ class Manager(object):
 
         self.heartbeat_period = heartbeat_period
         self.heartbeat_threshold = heartbeat_threshold
-        self.namespace = "sample-namespace"
-        self.username = "skluzacek"
+        self.user_dir = user_dir
 
     def create_reg_message(self):
         """ Creates a registration message to identify the worker to the interchange
@@ -305,6 +303,7 @@ class Manager(object):
         return
 
 
+
 def execute_task(bufs):
     """Deserialize the buffer and execute the task.
 
@@ -315,11 +314,11 @@ def execute_task(bufs):
 
     f, args, kwargs = unpack_apply_message(bufs, user_ns, copy=False)
 
+    logger.info(kwargs)
+
     # Make an appropriate directory
-    # TODO: Hardcode.
-    # TODO: hold username in manager on init.
-    if not os.path.isdir('./skluzacek/potato'):
-        os.mkdir('./skluzacek/potato')
+    if not os.path.isdir(manager.user_dir):
+        os.mkdir(manager.user_dir)
 
 
     # We might need to look into callability of the function from itself
@@ -340,7 +339,7 @@ def execute_task(bufs):
     try:
         # logger.debug("[RUNNER] Executing: {0}".format(code))
         orig_dir = os.getcwd()
-        os.chdir('./skluzacek/potato/')
+        os.chdir(manager.user_dir)
         exec(code, user_ns, user_ns)
         os.chdir(orig_dir)
 
@@ -392,7 +391,7 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
 
 def task_submit(req, tid, result_queue):
     try:
-        result = threading.Thread(execute_task(req['buffer']))
+        result = execute_task(req['buffer'])
         serialized_result = serialize_object(result)
     except Exception as e:
         result_package = {'task_id': tid, 'exception': serialize_object(
@@ -480,6 +479,8 @@ if __name__ == "__main__":
                         help="Heartbeat threshold in seconds. Uses manager default unless set")
     parser.add_argument("-r", "--result_url", required=True,
                         help="REQUIRED: ZMQ url for posting results")
+    parser.add_argument("-w", "--working_dir", required=True,
+                        help="REQUIRED: Directory for running functions.")
 
     args = parser.parse_args()
 
@@ -508,7 +509,8 @@ if __name__ == "__main__":
                           cores_per_worker=float(args.cores_per_worker),
                           max_workers=args.max_workers if args.max_workers == float('inf') else int(args.max_workers),
                           heartbeat_threshold=int(args.hb_threshold),
-                          heartbeat_period=int(args.hb_period))
+                          heartbeat_period=int(args.hb_period),
+                          user_dir=args.working_dir)
         manager.start()
 
     except Exception as e:
