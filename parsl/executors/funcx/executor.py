@@ -1,19 +1,19 @@
-"""FuncXExecutor builds on the Swift/T EMEWS architecture to use MPI for fast task distribution
+"""HighThroughputExecutor builds on the Swift/T EMEWS architecture to use MPI for fast task distribution
 """
 
-from multiprocessing import Process, Queue
 from concurrent.futures import Future
-import threading
 import logging
-import pickle
+import threading
 import queue
+import pickle
 import os
+from multiprocessing import Process, Queue
 
 from ipyparallel.serialize import pack_apply_message  # ,unpack_apply_message
 from ipyparallel.serialize import deserialize_object  # ,serialize_object
 
-from parsl.executors.funcx import zmq_pipes
-from parsl.executors.funcx import interchange
+from parsl.executors.high_throughput import zmq_pipes
+from parsl.executors.high_throughput import interchange
 from parsl.executors.errors import *
 from parsl.executors.base import ParslExecutor
 from parsl.dataflow.error import ConfigurationError
@@ -30,12 +30,12 @@ ITEM_THRESHOLD = 1024
 class FuncXExecutor(ParslExecutor, RepresentationMixin):
     """Executor designed for cluster-scale
 
-    The FuncXExecutor system has the following components:
-      1. The FuncXExecutor instance which is run as part of the Parsl script.
+    The HighThroughputExecutor system has the following components:
+      1. The HighThroughputExecutor instance which is run as part of the Parsl script.
       2. The Interchange which is acts as a load-balancing proxy between workers and Parsl
       3. The multiprocessing based worker pool which coordinates task execution over several
          cores on a node.
-      4. ZeroMQ pipes connect the FuncXExecutor, Interchange and the process_worker_pool
+      4. ZeroMQ pipes connect the HighThroughputExecutor, Interchange and the process_worker_pool
 
     Here is a diagram
 
@@ -85,7 +85,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         workers will be running. This can be either a hostname as returned by `hostname` or an
         IP address. Most login nodes on clusters have several network interfaces available, only
         some of which can be reached from the compute nodes.  Some trial and error might be
-        necessary to identify what FuncXExecutor addresses are reachable from compute nodes.
+        necessary to indentify what addresses are reachable from compute nodes.
 
     worker_ports : (int, int)
         Specify the ports to be used by workers to connect to Parsl. If this option is specified,
@@ -93,6 +93,14 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
 
     worker_port_range : (int, int)
         Worker ports will be chosen between the two integers provided.
+
+    interchange_address : str | function
+        Address (str) at which the interchange will be reachable from compute nodes or an address
+        function from parsl.addresses that be executed on the interchange to determine a suitable
+        address. Only valid when remote_interchange=True.
+        Eg. remote_interchange_address=parsl.addresses.address_by_hostname,
+            remote_interchange_address="10.10.10.2"
+        Default : "localhost"
 
     interchange_port_range : (int, int)
         Port range used by Parsl to communicate with the Interchange.
@@ -132,6 +140,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
                  address="127.0.0.1",
                  worker_ports=None,
                  worker_port_range=(54000, 55000),
+                 interchange_address="localhost",
                  interchange_port_range=(55000, 56000),
                  storage_access=None,
                  working_dir=None,
@@ -143,7 +152,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
                  suppress_failure=False,
                  managed=True):
 
-        logger.debug("Initializing FuncXExecutor")
+        logger.debug("Initializing HighThroughputExecutor")
 
         self.label = label
         self.launch_cmd = launch_cmd
@@ -168,17 +177,14 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         self.heartbeat_period = heartbeat_period
         self.suppress_failure = suppress_failure
         self.run_dir = '.'
+        self.interchange_address = interchange_address
+        self.namespace = "NAMESPACE"
+        self.username = "USERNAME"
 
-        ##############################
-        # TODO: Tyler -- my last name is hardcoded ^^^.
-        # Create user parsl runnable directory.
-        if not os.path.isdir('./skluzacek'):
-            os.mkdir('./skluzacek')
+        self.namespace_dir = "{}/{}".format(self.run_dir, self.namespace)
+        self.user_dir = "{}/{}".format(self.namespace_dir, self.username)
+        user_dir = self.user_dir
 
-        #################################
-
-        # TODO: TYLER -- add bit here that is the runnable directory name.
-        print(os.getcwd())
 
         if not launch_cmd:
             self.launch_cmd = ("funcx_worker_pool.py {debug} {max_workers} "
@@ -187,7 +193,17 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
                                "--result_url={result_url} "
                                "--logdir={logdir} "
                                "--hb_period={heartbeat_period} "
-                               "--hb_threshold={heartbeat_threshold} ")
+                               "--hb_threshold={heartbeat_threshold} "
+                               "--working_dir={user_dir} "
+                               "--namespace_dir={namespace_dir}")
+
+        self.ix_launch_cmd = ("funcx-interchange {debug} -c={client_address} "
+                              "--client_ports={client_ports} "
+                              "--worker_port_range={worker_port_range} "
+                              "--logdir={logdir} "
+                              "{suppress_failure} "
+                              "--hb_threshold={heartbeat_threshold} "
+                              )
 
     def initialize_scaling(self):
         """ Compose the launch command and call the scale_out
@@ -198,6 +214,14 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         debug_opts = "--debug" if self.worker_debug else ""
         max_workers = "" if self.max_workers == float('inf') else "--max_workers={}".format(self.max_workers)
 
+        if self.interchange_address == "localhost":
+            logdir = "{}/{}".format(self.run_dir, self.label)
+        else:
+            logdir = os.path.join(*(self.provider.channel.script_dir,
+                                    "runinfo",
+                                    os.path.basename(self.run_dir),
+                                    self.label))
+
         l_cmd = self.launch_cmd.format(debug=debug_opts,
                                        task_url=self.worker_task_url,
                                        result_url=self.worker_result_url,
@@ -206,12 +230,14 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
                                        nodes_per_block=self.provider.nodes_per_block,
                                        heartbeat_period=self.heartbeat_period,
                                        heartbeat_threshold=self.heartbeat_threshold,
-                                       logdir="{}/{}".format(self.run_dir, self.label))
+                                       logdir=logdir,
+                                       user_dir=self.user_dir,
+                                       namespace_dir=self.namespace_dir)
         self.launch_cmd = l_cmd
         logger.debug("Launch command: {}".format(self.launch_cmd))
 
         self._scaling_enabled = self.provider.scaling_enabled
-        logger.debug("Starting FuncXExecutor with provider:\n%s", self.provider)
+        logger.debug("Starting HighThroughputExecutor with provider:\n%s", self.provider)
         if hasattr(self.provider, 'init_blocks'):
             try:
                 self.scale_out(blocks=self.provider.init_blocks)
@@ -222,9 +248,9 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
     def start(self):
         """Create the Interchange process and connect to it.
         """
-        self.outgoing_q = zmq_pipes.TasksOutgoing("127.0.0.1", self.interchange_port_range)
-        self.incoming_q = zmq_pipes.ResultsIncoming("127.0.0.1", self.interchange_port_range)
-        self.command_client = zmq_pipes.CommandClient("127.0.0.1", self.interchange_port_range)
+        self.outgoing_q = zmq_pipes.TasksOutgoing("0.0.0.0", self.interchange_port_range)
+        self.incoming_q = zmq_pipes.ResultsIncoming("0.0.0.0", self.interchange_port_range)
+        self.command_client = zmq_pipes.CommandClient("0.0.0.0", self.interchange_port_range)
 
         self.is_alive = True
 
@@ -232,7 +258,10 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         self._executor_exception = None
         self._queue_management_thread = None
         self._start_queue_management_thread()
-        self._start_local_queue_process()
+        if self.interchange_address == "localhost":
+            self._start_local_queue_process()
+        else:
+            self._start_remote_interchange_process()
 
         logger.debug("Created management thread: {}".format(self._queue_management_thread))
 
@@ -240,7 +269,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
             self.initialize_scaling()
         else:
             self._scaling_enabled = False
-            logger.debug("Starting FuncXExecutor with no provider")
+            logger.debug("Starting HighThroughputExecutor with no provider")
 
     def _queue_management_worker(self):
         """Listen to the queue for task status messages and handle them.
@@ -382,6 +411,44 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         self.worker_task_url = "tcp://{}:{}".format(self.address, worker_task_port)
         self.worker_result_url = "tcp://{}:{}".format(self.address, worker_result_port)
 
+    def _start_remote_interchange_process(self):
+        """ Starts the interchange process locally
+
+        Starts the interchange process remotely via the provider.channel and uses the command channel
+        to request worker urls that the interchange has selected.
+        """
+        logger.debug("Attempting Interchange deployment via channel: {}".format(self.provider.channel))
+
+        debug_opts = "--debug" if self.worker_debug else ""
+        suppress_failure = "--suppress_failure" if self.suppress_failure else ""
+        logger.debug("Before : \n{}\n".format(self.ix_launch_cmd))
+        launch_command = self.ix_launch_cmd.format(debug=debug_opts,
+                                                   client_address=self.address,
+                                                   client_ports="{},{},{}".format(self.outgoing_q.port,
+                                                                                  self.incoming_q.port,
+                                                                                  self.command_client.port),
+                                                   worker_port_range="{},{}".format(self.worker_port_range[0],
+                                                                                    self.worker_port_range[1]),
+                                                   logdir="{}/runinfo/{}/{}".format(self.provider.channel.script_dir,
+                                                                                    os.path.basename(self.run_dir),
+                                                                                    self.label),
+                                                   suppress_failure=suppress_failure,
+                                                   heartbeat_threshold=self.heartbeat_threshold)
+
+        if self.provider.worker_init:
+            launch_command = self.provider.worker_init + '\n' + launch_command
+
+        logger.debug("Launch command : \n{}\n".format(launch_command))
+
+        retcode, stdout, stderr = self.provider.execute_wait(launch_command)
+        if retcode == 0:
+            logger.debug("Starting Interchange remotely worked")
+
+        logger.debug("Requesting worker urls ")
+        self.worker_task_url, self.worker_result_url = self.get_worker_urls()
+        logger.debug("Got worker urls {}, {}".format(self.worker_task_url, self.worker_result_url))
+        return
+
     def _start_queue_management_thread(self):
         """Method to start the management thread as a daemon.
 
@@ -414,6 +481,24 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         logger.debug("Sent hold request to worker: {}".format(worker_id))
         return c
 
+    def _shutdown_interchange(self):
+        """Trigger shutdown sequence on the Interchange
+
+        """
+        c = self.command_client.run("SHUTDOWN")
+        logger.debug("Sent shutdown command to interchange")
+        return c
+
+    def get_worker_urls(self):
+        """Ensure Interchange is reachable over the command channel and get worker urls
+
+        Returns:
+            worker_task_url, worker_result_url
+        """
+        c = self.command_client.run("GET_WORKER_URLS;{}".format(self.interchange_address))
+        logger.debug("Got worker urls: {}".format(c))
+        return c
+
     @property
     def outstanding(self):
         outstanding_c = self.command_client.run("OUTSTANDING_C")
@@ -427,7 +512,6 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         return workers
 
     def submit(self, func, *args, **kwargs):
-        # TODO: TYLER: (for version 2.0) Add a keyword arg in node manager that says what type of runtime we need to run.
         """Submits work to the the outgoing_q.
 
         The outgoing_q is an external process listens on this
@@ -444,7 +528,6 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         Returns:
               Future
         """
-
         if self._executor_bad_state.is_set():
             raise self._executor_exception
 
@@ -530,9 +613,11 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
              NotImplementedError
         """
 
-        logger.warning("Attempting FuncXExecutor shutdown")
+        logger.warning("Attempting HighThroughputExecutor shutdown")
         # self.outgoing_q.close()
         # self.incoming_q.close()
-        self.queue_proc.terminate()
-        logger.warning("Finished FuncXExecutor shutdown attempt")
+        self._shutdown_interchange()
+        if self.interchange_address == "localhost":
+            self.queue_proc.terminate()
+        logger.warning("Finished HighThroughputExecutor shutdown attempt")
         return True

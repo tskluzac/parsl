@@ -59,6 +59,8 @@ setup(
     keywords=['Workflows', 'Scientific computing'],
     entry_points={'console_scripts':
       ['parsl-visualize=parsl.monitoring.web_app.index:cli_run',
-       'parsl-globus-auth=parsl.data_provider.globus:cli_run'
+       'parsl-globus-auth=parsl.data_provider.globus:cli_run',
+       'htex-interchange=parsl.executors.high_throughput.interchange:cli_run',
+       'funcx-interchange=parsl.executors.funcx.interchange:cli_run',
       ]}
 )

@@ -53,7 +53,8 @@ class Manager(object):
                  uid=None,
                  heartbeat_threshold=120,
                  heartbeat_period=30,
-                 user_dir=None):
+                 user_dir=None,
+                 namespace_dir=None):
         """
         Parameters
         ----------
@@ -116,7 +117,19 @@ class Manager(object):
 
         self.heartbeat_period = heartbeat_period
         self.heartbeat_threshold = heartbeat_threshold
+
+        self.namespace_dir = namespace_dir
         self.user_dir = user_dir
+
+        # Create user parsl runnable directory.
+        if not os.path.isdir((self.user_dir).split):
+            os.mkdir(self.user)
+
+        if not os.path.isdir(self.user_dir):
+            os.mkdir(self.user_dir)
+        #################################
+
+
 
     def create_reg_message(self):
         """ Creates a registration message to identify the worker to the interchange
@@ -154,7 +167,7 @@ class Manager(object):
 
         # Send a registration message
         msg = self.create_reg_message()
-        logger.debug("Sending registration message: {}".format(msg))
+        logger.info("Sending registration message: {}".format(msg))
         self.task_incoming.send(msg)
         last_beat = time.time()
         last_interchange_contact = time.time()
@@ -510,7 +523,8 @@ if __name__ == "__main__":
                           max_workers=args.max_workers if args.max_workers == float('inf') else int(args.max_workers),
                           heartbeat_threshold=int(args.hb_threshold),
                           heartbeat_period=int(args.hb_period),
-                          user_dir=args.working_dir)
+                          user_dir=args.working_dir,
+                          namespace_dir=args.namespace_dir)
         manager.start()
 
     except Exception as e:
