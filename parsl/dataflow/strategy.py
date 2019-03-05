@@ -2,7 +2,7 @@ import logging
 import time
 import math
 
-from parsl.executors import IPyParallelExecutor, HighThroughputExecutor, ExtremeScaleExecutor
+from parsl.executors import IPyParallelExecutor, HighThroughputExecutor, ExtremeScaleExecutor, FuncXExecutor
 
 
 logger = logging.getLogger(__name__)
