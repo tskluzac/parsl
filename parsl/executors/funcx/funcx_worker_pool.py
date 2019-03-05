@@ -122,8 +122,8 @@ class Manager(object):
         self.user_dir = user_dir
 
         # Create user parsl runnable directory.
-        if not os.path.isdir((self.user_dir).split):
-            os.mkdir(self.user)
+        if not os.path.isdir(self.namespace_dir):
+            os.mkdir(self.namespace_dir)
 
         if not os.path.isdir(self.user_dir):
             os.mkdir(self.user_dir)
@@ -333,7 +333,6 @@ def execute_task(bufs):
     if not os.path.isdir(manager.user_dir):
         os.mkdir(manager.user_dir)
 
-
     # We might need to look into callability of the function from itself
     # since we change it's name in the new namespace
     prefix = "parsl_"
@@ -351,6 +350,7 @@ def execute_task(bufs):
                                            argname, kwargname)
     try:
         # logger.debug("[RUNNER] Executing: {0}".format(code))
+
         orig_dir = os.getcwd()
         os.chdir(manager.user_dir)
         exec(code, user_ns, user_ns)
