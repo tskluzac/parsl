@@ -84,7 +84,7 @@ class Manager(object):
 
         """
         logger.info("Manager started")
-
+        print('IN THE MANAGER')
         self.context = zmq.Context()
         self.task_incoming = self.context.socket(zmq.DEALER)
         self.task_incoming.setsockopt(zmq.IDENTITY, uid.encode('utf-8'))
@@ -494,6 +494,8 @@ if __name__ == "__main__":
                         help="REQUIRED: ZMQ url for posting results")
     parser.add_argument("-w", "--working_dir", required=True,
                         help="REQUIRED: Directory for running functions.")
+    parser.add_argument("-n", "--namespace_dir", required=True,
+                        help="REQUIRED: NAMESPACE for running functions.")
 
     args = parser.parse_args()
 

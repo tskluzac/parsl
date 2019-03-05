@@ -152,8 +152,8 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
                  suppress_failure=False,
                  managed=True):
 
-        logger.debug("Initializing HighThroughputExecutor")
-
+        logger.debug("Initializing FuncXExecutor")
+        logger.debug('WE ARE HERE')
         self.label = label
         self.launch_cmd = launch_cmd
         self.provider = provider
@@ -184,7 +184,9 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         self.namespace_dir = "{}/{}".format(self.run_dir, self.namespace)
         self.user_dir = "{}/{}".format(self.namespace_dir, self.username)
         user_dir = self.user_dir
-
+        print('HELLO?!')
+        print(self.user_dir)
+        
 
         if not launch_cmd:
             self.launch_cmd = ("funcx_worker_pool.py {debug} {max_workers} "
@@ -204,6 +206,8 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
                               "{suppress_failure} "
                               "--hb_threshold={heartbeat_threshold} "
                               )
+        logger.debug('finished setting up executor')
+        logger.debug(self.launch_cmd)
 
     def initialize_scaling(self):
         """ Compose the launch command and call the scale_out
@@ -213,7 +217,8 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         """
         debug_opts = "--debug" if self.worker_debug else ""
         max_workers = "" if self.max_workers == float('inf') else "--max_workers={}".format(self.max_workers)
-
+        print('interchange address')
+        print(self.interchange_address)
         if self.interchange_address == "localhost":
             logdir = "{}/{}".format(self.run_dir, self.label)
         else:
@@ -237,7 +242,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         logger.debug("Launch command: {}".format(self.launch_cmd))
 
         self._scaling_enabled = self.provider.scaling_enabled
-        logger.debug("Starting HighThroughputExecutor with provider:\n%s", self.provider)
+        logger.debug("Starting FuncXExecutor with provider:\n%s", self.provider)
         if hasattr(self.provider, 'init_blocks'):
             try:
                 self.scale_out(blocks=self.provider.init_blocks)
@@ -258,9 +263,12 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
         self._executor_exception = None
         self._queue_management_thread = None
         self._start_queue_management_thread()
+        print('is this localhost?')
+        print(self.interchange_address)
         if self.interchange_address == "localhost":
             self._start_local_queue_process()
         else:
+            print('starting remote instead')
             self._start_remote_interchange_process()
 
         logger.debug("Created management thread: {}".format(self._queue_management_thread))
@@ -269,7 +277,7 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
             self.initialize_scaling()
         else:
             self._scaling_enabled = False
-            logger.debug("Starting HighThroughputExecutor with no provider")
+            logger.debug("Starting FuncXExecutor with no provider")
 
     def _queue_management_worker(self):
         """Listen to the queue for task status messages and handle them.
@@ -613,11 +621,11 @@ class FuncXExecutor(ParslExecutor, RepresentationMixin):
              NotImplementedError
         """
 
-        logger.warning("Attempting HighThroughputExecutor shutdown")
+        logger.warning("Attempting FuncXExecutor shutdown")
         # self.outgoing_q.close()
         # self.incoming_q.close()
         self._shutdown_interchange()
         if self.interchange_address == "localhost":
             self.queue_proc.terminate()
-        logger.warning("Finished HighThroughputExecutor shutdown attempt")
+        logger.warning("Finished FuncXExecutor shutdown attempt")
         return True
