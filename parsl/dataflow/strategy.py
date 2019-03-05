@@ -179,8 +179,10 @@ class Strategy(object):
             max_blocks = executor.provider.max_blocks
             if isinstance(executor, IPyParallelExecutor):
                 tasks_per_node = executor.workers_per_node
-            elif isinstance(executor, HighThroughputExecutor):
                 # This is probably wrong calculation, we need this to come from the executor
+            elif isinstance(executor, FuncXExecutor):
+                tasks_per_node = 1
+            elif isinstance(executor, HighThroughputExecutor):
                 # since we can't know slots ahead of time.
                 tasks_per_node = 1
             elif isinstance(executor, ExtremeScaleExecutor):
