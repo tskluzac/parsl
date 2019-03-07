@@ -327,9 +327,8 @@ def execute_task(bufs):
 
     f, args, kwargs = unpack_apply_message(bufs, user_ns, copy=False)
 
-    logger.info(kwargs)
-
     # Make an appropriate directory
+    # TODO: Turn this back into the timestamp.
     if not os.path.isdir(manager.user_dir):
         os.mkdir(manager.user_dir)
 
