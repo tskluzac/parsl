@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: ubuntu:latest
+
+%post
+      apt-get update
+      apt-get install git -y
+      apt-get install -y python3.6 python3-pip
+      rm -rf /var/lib/apt/lists/*
+      python3 --version
+      which python3
+
+%runscript
+exec python3 "$@"
