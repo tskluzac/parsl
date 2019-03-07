@@ -338,7 +338,7 @@ def execute_task(bufs):
 
     # Step into user runtime directory.
 
-    # TODO: TYLER BEFORE YOU DO ANYTHING ELSE, PLEASE MANAGE THIS.
+
     os.chdir(manager.user_dir)
 
     runtime_def = 'sing-runtime.def'
@@ -357,12 +357,16 @@ def execute_task(bufs):
         pickle.dump(bufs, handle)
 
     # Step 3. Run the singularity container with buffer file as input.
-    run_cmd = "singularity run sing-runtime.sif runtime.py {}".format(buffer_file)
+    run_cmd = "singularity run {} runtime.py {}".format(runtime_image, buffer_file)
     process = subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE)
 
     # Step 4. Pick up outputted result file.
     result_file = "function_result.pkl"
     runtime_result = pickle.load(open(result_file, "rb"))
+
+
+    # Come back to parsl directory.
+    os.chdir(orig_dir)
 
     # Step 5. Return like nothing happened.
     return runtime_result
