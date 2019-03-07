@@ -338,7 +338,7 @@ def execute_task(bufs):
 
     # Step into user runtime directory.
 
-    # TODO: TYLER BEFORE YOU DO ANYTHING ELSE, PLEASE MANAGE THIS. 
+    # TODO: TYLER BEFORE YOU DO ANYTHING ELSE, PLEASE MANAGE THIS.
     os.chdir(manager.user_dir)
 
     runtime_def = 'sing-runtime.def'
