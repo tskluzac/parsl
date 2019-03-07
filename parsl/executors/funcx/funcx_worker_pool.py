@@ -357,7 +357,7 @@ def execute_task(bufs):
         pickle.dump(bufs, handle)
 
     # Step 3. Run the singularity container with buffer file as input.
-    run_cmd = "singularity run {} runtime.py {}".format(runtime_image, buffer_file)
+    run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
     process = subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE)
 
     # Step 4. Pick up outputted result file.
