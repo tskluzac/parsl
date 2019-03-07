@@ -13,6 +13,7 @@ import uuid
 import zmq
 import math
 import json
+import subprocess
 
 from parsl.version import VERSION as PARSL_VERSION
 import multiprocessing
@@ -322,46 +323,88 @@ def execute_task(bufs):
 
     Returns the result or throws exception.
     """
-    user_ns = locals()
-    user_ns.update({'__builtins__': __builtins__})
 
-    f, args, kwargs = unpack_apply_message(bufs, user_ns, copy=False)
+    # Step 0. Create appropriate directory
+    # # Make an appropriate directory
+    # # TODO: Turn this back into the timestamp.
+    # if not os.path.isdir(manager.user_dir):
+    #     os.mkdir(manager.user_dir)
 
-    # Make an appropriate directory
-    # TODO: Turn this back into the timestamp.
-    if not os.path.isdir(manager.user_dir):
-        os.mkdir(manager.user_dir)
+    orig_dir = os.getcwd()
+        # os.chdir(manager.user_dir)
+        # exec(code, user_ns, user_ns)
+        # os.chdir(orig_dir)
 
-    # We might need to look into callability of the function from itself
-    # since we change it's name in the new namespace
-    prefix = "parsl_"
-    fname = prefix + "f"
-    argname = prefix + "args"
-    kwargname = prefix + "kwargs"
-    resultname = prefix + "result"
 
-    user_ns.update({fname: f,
-                    argname: args,
-                    kwargname: kwargs,
-                    resultname: resultname})
+    # Step into user runtime directory.
 
-    code = "{0} = {1}(*{2}, **{3})".format(resultname, fname,
-                                           argname, kwargname)
-    try:
-        # logger.debug("[RUNNER] Executing: {0}".format(code))
+    # TODO: TYLER BEFORE YOU DO ANYTHING ELSE, PLEASE MANAGE THIS. 
+    os.chdir(manager.user_dir)
 
-        orig_dir = os.getcwd()
-        os.chdir(manager.user_dir)
-        exec(code, user_ns, user_ns)
-        os.chdir(orig_dir)
+    runtime_def = 'sing-runtime.def'
+    runtime_image = 'sing-runtime.sif'
 
-    except Exception as e:
-        logger.warning("Caught exception; will raise it: {}".format(e), exc_info=True)
-        raise e
+    # # Step 1. Check if runtime already built. If not, build it.
+    # if not os.path.isfile(manager.user_dir + '/sing-runtime.sif'):
+    #     # TODO: Unhardcode these names when we have more than 1 runtime.
+    #     build_cmd = "singularity build sing-run.sif sing-run.def"
+    #     process = subprocess.call(build_cmd.split(' '), stdout=subprocess.PIPE)
+    #     # out, err = process.communicate()
 
-    else:
-        # logger.debug("[RUNNER] Result: {0}".format(user_ns.get(resultname)))
-        return user_ns.get(resultname)
+    # Step 2. Write buffers to file in runtime directory.
+    buffer_file = "funcx_buffer.pkl"
+    with open(buffer_file, 'wb') as handle:
+        pickle.dump(bufs, handle)
+
+    # Step 3. Run the singularity container with buffer file as input.
+    run_cmd = "singularity run sing-runtime.sif runtime.py {}".format(buffer_file)
+    process = subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE)
+
+    # Step 4. Pick up outputted result file.
+    result_file = "function_result.pkl"
+    runtime_result = pickle.load(open(result_file, "rb"))
+
+    # Step 5. Return like nothing happened.
+    return runtime_result
+
+
+    # user_ns = locals()
+    # user_ns.update({'__builtins__': __builtins__})
+    #
+    # f, args, kwargs = unpack_apply_message(bufs, user_ns, copy=False)
+    #
+    #
+    # # We might need to look into callability of the function from itself
+    # # since we change it's name in the new namespace
+    # prefix = "parsl_"
+    # fname = prefix + "f"
+    # argname = prefix + "args"
+    # kwargname = prefix + "kwargs"
+    # resultname = prefix + "result"
+    #
+    # user_ns.update({fname: f,
+    #                 argname: args,
+    #                 kwargname: kwargs,
+    #                 resultname: resultname})
+    #
+    # code = "{0} = {1}(*{2}, **{3})".format(resultname, fname,
+    #                                        argname, kwargname)
+    # try:
+    #     # logger.debug("[RUNNER] Executing: {0}".format(code))
+    #
+    #     # orig_dir = os.getcwd()
+    #     # os.chdir(manager.user_dir)
+    #     exec(code, user_ns, user_ns)
+    #     # os.chdir(orig_dir)
+    #
+    # except Exception as e:
+    #     logger.warning("Caught exception; will raise it: {}".format(e), exc_info=True)
+    #     raise e
+    #
+    # else:
+    #     # logger.debug("[RUNNER] Result: {0}".format(user_ns.get(resultname)))
+    #     return user_ns.get(resultname)
+
 
 
 def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
