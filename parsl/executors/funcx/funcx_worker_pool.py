@@ -359,7 +359,6 @@ def execute_task(bufs):
     result_file = "function_result.pkl"
     runtime_result = pickle.load(open(result_file, "rb"))
 
-
     # Come back to parsl directory.
     os.chdir(orig_dir)
 
