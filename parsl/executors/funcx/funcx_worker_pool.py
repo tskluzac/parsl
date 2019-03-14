@@ -331,18 +331,13 @@ def execute_task(bufs):
     #     os.mkdir(manager.user_dir)
 
     orig_dir = os.getcwd()
-        # os.chdir(manager.user_dir)
-        # exec(code, user_ns, user_ns)
-        # os.chdir(orig_dir)
 
 
     # Step into user runtime directory.
-
-
     os.chdir(manager.user_dir)
 
     runtime_def = 'sing-runtime.def'
-    runtime_image = 'sing-runtime.sif'
+    runtime_image = 'sing-run.simg'
 
     # # Step 1. Check if runtime already built. If not, build it.
     # if not os.path.isfile(manager.user_dir + '/sing-runtime.sif'):
