@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 
+
+from ipyparallel.serialize import serialize_object
+from parsl.version import VERSION as PARSL_VERSION
+
+import multiprocessing
+import subprocess
+import threading
+import platform
 import argparse
 import logging
-import os
-import sys
-import platform
-import threading
 import pickle
-import time
 import queue
+import time
 import uuid
-import zmq
 import math
 import json
-import subprocess
+import sys
+import zmq
+import os
 
-from parsl.version import VERSION as PARSL_VERSION
-import multiprocessing
-
-from ipyparallel.serialize import unpack_apply_message  # pack_apply_message,
-from ipyparallel.serialize import serialize_object
 
 RESULT_TAG = 10
 TASK_REQUEST_TAG = 11
@@ -85,7 +85,6 @@ class Manager(object):
 
         """
         logger.info("Manager started")
-        print('IN THE MANAGER')
         self.context = zmq.Context()
         self.task_incoming = self.context.socket(zmq.DEALER)
         self.task_incoming.setsockopt(zmq.IDENTITY, uid.encode('utf-8'))
@@ -128,8 +127,6 @@ class Manager(object):
 
         if not os.path.isdir(self.user_dir):
             os.mkdir(self.user_dir)
-        #################################
-
 
 
     def create_reg_message(self):
@@ -317,7 +314,6 @@ class Manager(object):
         return
 
 
-
 def execute_task(bufs):
     """Deserialize the buffer and execute the task.
 
@@ -332,16 +328,14 @@ def execute_task(bufs):
 
     orig_dir = os.getcwd()
 
-
     # Step into user runtime directory.
     os.chdir(manager.user_dir)
 
     runtime_def = 'sing-runtime.def'
     runtime_image = 'sing-run.simg'
 
-    # # Step 1. Check if runtime already built. If not, build it.
+    # TODO: We'll want to build the runtime here.
     # if not os.path.isfile(manager.user_dir + '/sing-runtime.sif'):
-    #     # TODO: Unhardcode these names when we have more than 1 runtime.
     #     build_cmd = "singularity build sing-run.sif sing-run.def"
     #     process = subprocess.call(build_cmd.split(' '), stdout=subprocess.PIPE)
     #     # out, err = process.communicate()
@@ -364,45 +358,6 @@ def execute_task(bufs):
 
     # Step 5. Return like nothing happened.
     return runtime_result
-
-
-    # user_ns = locals()
-    # user_ns.update({'__builtins__': __builtins__})
-    #
-    # f, args, kwargs = unpack_apply_message(bufs, user_ns, copy=False)
-    #
-    #
-    # # We might need to look into callability of the function from itself
-    # # since we change it's name in the new namespace
-    # prefix = "parsl_"
-    # fname = prefix + "f"
-    # argname = prefix + "args"
-    # kwargname = prefix + "kwargs"
-    # resultname = prefix + "result"
-    #
-    # user_ns.update({fname: f,
-    #                 argname: args,
-    #                 kwargname: kwargs,
-    #                 resultname: resultname})
-    #
-    # code = "{0} = {1}(*{2}, **{3})".format(resultname, fname,
-    #                                        argname, kwargname)
-    # try:
-    #     # logger.debug("[RUNNER] Executing: {0}".format(code))
-    #
-    #     # orig_dir = os.getcwd()
-    #     # os.chdir(manager.user_dir)
-    #     exec(code, user_ns, user_ns)
-    #     # os.chdir(orig_dir)
-    #
-    # except Exception as e:
-    #     logger.warning("Caught exception; will raise it: {}".format(e), exc_info=True)
-    #     raise e
-    #
-    # else:
-    #     # logger.debug("[RUNNER] Result: {0}".format(user_ns.get(resultname)))
-    #     return user_ns.get(resultname)
-
 
 
 def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
