@@ -2,6 +2,18 @@ import os
 import argparse
 import pickle
 from ipyparallel.serialize import unpack_apply_message
+import logging
+import sys
+import platform
+import threading
+import time
+import queue
+import uuid
+import zmq
+import math
+import json
+import subprocess
+
 
 parser = argparse.ArgumentParser(description='Get Parsl buffer information for FuncX runtime in Singularity.')
 
@@ -34,14 +46,23 @@ user_ns.update({fname: f,
 
 code = "{0} = {1}(*{2}, **{3})".format(resultname, fname,
                                        argname, kwargname)
+
+
+with open("test_file2.py", "w") as f:
+    f.write(code)
+
 try:
     exec(code, user_ns, user_ns)
-
+    print("HERE")
 except Exception as e:
+    print("HELLO")
     print("Caught exception; will raise it: {}".format(e))
     raise e
 
 else:
     result_filepath = 'function_result.pkl'
     # TODO: Write this to file named 'function_result.pkl'
-    pickle.dump(user_ns.get(resultname), open(result_filepath), "wb")
+    print(user_ns.get(resultname))
+    print("BANANA")
+    pickle.dump(user_ns.get(resultname), open(result_filepath,"wb"))
+    print("YO.")
