@@ -350,7 +350,9 @@ def execute_task(bufs):
 
     try:
         run_cmd = "touch aaa.txt"
-        subprocess.call(run_cmd.split(' '), cwd="/home/tskluzac/workdir/NAMESPACE/USERNAME")
+        x = subprocess.call(run_cmd.split(' '), cwd="/home/tskluzac/workdir/NAMESPACE/USERNAME")
+        print("EXIT CODE: " + x)
+
 
     except Exception as e:
         print(e)
