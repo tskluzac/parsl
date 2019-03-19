@@ -350,7 +350,7 @@ def execute_task(bufs):
 
     try:
         run_cmd = "touch aaa.txt"
-        subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE, shell=True)
+        subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE, shell=True, cwd="/home/tskluzac/workdir/NAMESPACE/USERNAME")
 
     except Exception as e:
         print(e)
