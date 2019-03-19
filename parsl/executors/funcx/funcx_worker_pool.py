@@ -326,6 +326,8 @@ def execute_task(bufs):
     # if not os.path.isdir(manager.user_dir):
     #     os.mkdir(manager.user_dir)
 
+    logger.info("8888 LET'S EXECUTE THE TASK")
+
     orig_dir = os.getcwd()
 
     # Step into user runtime directory.
