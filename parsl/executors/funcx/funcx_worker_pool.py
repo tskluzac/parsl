@@ -347,7 +347,7 @@ def execute_task(bufs):
 
     # Step 3. Run the singularity container with buffer file as input.
     run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
-    process = subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE)
+    subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE, shell=True)
 
     # Step 4. Pick up outputted result file.
     result_file = "function_result.pkl"
