@@ -346,8 +346,14 @@ def execute_task(bufs):
         pickle.dump(bufs, handle)
 
     # Step 3. Run the singularity container with buffer file as input.
-    run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
-    subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE, shell=True)
+    # run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
+
+    try:
+        run_cmd = "touch aaa.txt"
+        subprocess.call(run_cmd.split(' '), stdout=subprocess.PIPE, shell=True)
+
+    except Exception as e:
+        print(e)
 
     # Step 4. Pick up outputted result file.
     result_file = "function_result.pkl"
