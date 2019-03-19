@@ -355,7 +355,6 @@ def execute_task(bufs):
         x = subprocess.call(run_cmd.split(' '), cwd="/home/tskluzac/workdir/NAMESPACE/USERNAME")
         logger.info("EXIT CODE: " + str(x))
 
-
     except Exception as e:
         print(e)
 
@@ -405,6 +404,10 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
         # NOTE: thread is asynchronous, and only shuts down at process-end. No reply sent back to host.
         task_execute_thread = threading.Thread(task_submit(req, tid, result_queue))
         task_execute_thread.start()
+
+        logger.info("Starting Thread")
+        task_execute_thread.join()
+        logger.info("Thread completed")
 
 
 def task_submit(req, tid, result_queue):
