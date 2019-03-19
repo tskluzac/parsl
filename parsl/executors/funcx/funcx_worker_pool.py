@@ -351,7 +351,8 @@ def execute_task(bufs):
     # run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
 
     try:
-        run_cmd = "touch aaa.txt"
+        # run_cmd = "touch aaa.txt"
+        run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
         x = subprocess.call(run_cmd.split(' '))
         logger.info("EXIT CODE: " + str(x))
 
