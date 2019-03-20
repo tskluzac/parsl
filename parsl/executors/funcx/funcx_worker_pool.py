@@ -350,14 +350,32 @@ def execute_task(bufs):
     # Step 3. Run the singularity container with buffer file as input.
     # run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
 
+    returncode = None
     try:
-        # run_cmd = "touch aaa.txt"
-        run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
-        x = subprocess.call(run_cmd.split(' '))
-        logger.info("EXIT CODE: " + str(x))
+        run_cmd = "touch aaa.txt"
+        # run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
+        # run_cmd = "singularity --version"
+        print(run_cmd)
+
+        proc = subprocess.Popen(run_cmd, shell=True, executable='/bin/bash')
+        proc.wait(timeout=1000000)
+        returncode = proc.returncode
+
+
+        with open("doodoodoo.txt", 'w') as q:
+            q.write(str(returncode))
+
+   
+
 
     except Exception as e:
         print(e)
+        raise(e)
+
+
+
+    with open("doodoodoo2.txt", 'w') as q:
+        q.write(str(returncode))
 
     # Step 4. Pick up outputted result file.
     result_file = "function_result.pkl"
