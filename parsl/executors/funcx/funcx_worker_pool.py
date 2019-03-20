@@ -348,16 +348,23 @@ def execute_task(bufs):
         pickle.dump(bufs, handle)
 
     # Step 3. Run the singularity container with buffer file as input.
-    # run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
+    # run_cmd = "singularity run {} /home/tskluzac/NAMESPACE/USERNAME/runtime.py --buffer_file {}".format(runtime_image, buffer_file)
 
     returncode = None
     try:
-        run_cmd = "touch aaa.txt"
-        # run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
+        f = open("subprocess_output.txt", "w")
+        g = open("subprocess_error.txt", "w")
+        h = open("dir_info.txt", "w")
+
+	# h.write(str(os.listdir('.')) + "\n")
+        h.write(os.getcwd())
+
+        # run_cmd = "touch aaa.txt"
+        run_cmd = "singularity run {} runtime.py --buffer_file {}".format(runtime_image, buffer_file)
         # run_cmd = "singularity --version"
         print(run_cmd)
 
-        proc = subprocess.Popen(run_cmd, shell=True, executable='/bin/bash')
+        proc = subprocess.Popen(run_cmd, shell=True, stdout=f, stderr=g, executable='/bin/bash')
         proc.wait(timeout=1000000)
         returncode = proc.returncode
 
@@ -369,8 +376,10 @@ def execute_task(bufs):
 
 
     except Exception as e:
+        j = open("FUCKING_ERROR.txt", "w")
+        j.write(e)
         print(e)
-        raise(e)
+        # raise(e)
 
 
 
