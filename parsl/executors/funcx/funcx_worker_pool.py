@@ -430,12 +430,13 @@ def worker(worker_id, pool_id, task_queue, result_queue, worker_queue):
             pass
 
         # NOTE: thread is asynchronous, and only shuts down at process-end. No reply sent back to host.
-        task_execute_thread = threading.Thread(task_submit(req, tid, result_queue))
-        task_execute_thread.start()
-
-        logger.info("Starting Thread")
-        task_execute_thread.join()
-        logger.info("Thread completed")
+        # task_execute_thread = threading.Thread(task_submit(req, tid, result_queue))
+        task_submit(req, tid, result_queue)
+        # task_execute_thread.start()
+        #
+        # logger.info("Starting Thread")
+        # task_execute_thread.join()
+        # logger.info("Thread completed")
 
 
 def task_submit(req, tid, result_queue):
